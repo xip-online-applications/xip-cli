@@ -1,22 +1,23 @@
-package ini_config_file
+package config_file
 
 import (
 	"fmt"
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path/filepath"
 )
 
-type ConfigFileIni struct {
-	path  string
-	viper *viper.Viper
+type ConfigFile struct {
+	configType string
+	path       string
+	viper      *viper.Viper
 }
 
-func New(path string) (*ConfigFileIni, error) {
-	c := new(ConfigFileIni)
+func New(path string, configType string) (*ConfigFile, error) {
+	c := new(ConfigFile)
 	c.path = path
+	c.configType = configType
 
 	if _, err := os.Stat(c.path); err != nil {
 		_ = os.MkdirAll(filepath.Dir(c.path), os.ModePerm)
@@ -26,7 +27,7 @@ func New(path string) (*ConfigFileIni, error) {
 	c.viper = viper.New()
 	c.viper.SetConfigName(filepath.Base(c.path))
 	c.viper.AddConfigPath(filepath.Dir(c.path))
-	c.viper.SetConfigType("ini")
+	c.viper.SetConfigType(configType)
 
 	if err := c.Read(); err != nil {
 		return nil, fmt.Errorf("Fatal error reading config file: %s \n", err)
@@ -35,30 +36,23 @@ func New(path string) (*ConfigFileIni, error) {
 	return c, nil
 }
 
-func AppConf() *ConfigFileIni {
-	usr, _ := user.Current()
-	conf, err := New(usr.HomeDir + "/.xip/config")
-
-	if err != nil {
-		panic(fmt.Errorf("Could not open the configuration file: %s \n", err))
-	}
-
-	return conf
+func (c *ConfigFile) SetConfigType(configType string) {
+	c.configType = configType
 }
 
-func (c *ConfigFileIni) IsSet(key string) bool {
+func (c *ConfigFile) IsSet(key string) bool {
 	return c.viper.IsSet(key)
 }
 
-func (c *ConfigFileIni) GetString(key string) string {
+func (c *ConfigFile) GetString(key string) string {
 	return c.viper.GetString(key)
 }
 
-func (c *ConfigFileIni) Set(key string, value interface{}) {
+func (c *ConfigFile) Set(key string, value interface{}) {
 	c.viper.Set(key, value)
 }
 
-func (c *ConfigFileIni) Read() error {
+func (c *ConfigFile) Read() error {
 	if err := c.viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("Fatal error reading config file: %s \n", err)
 	}
@@ -66,7 +60,7 @@ func (c *ConfigFileIni) Read() error {
 	return nil
 }
 
-func (c *ConfigFileIni) Write() error {
+func (c *ConfigFile) Write() error {
 	if err := c.viper.WriteConfigAs(c.path); err != nil {
 		return fmt.Errorf("Fatal error writing config file: %s \n", err)
 	}

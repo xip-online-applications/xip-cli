@@ -1,10 +1,15 @@
 package functions
 
 import (
+	json2 "encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
-	"xip/utils/ini_config_file"
+	"path/filepath"
+	"xip/utils/config_file/ini"
+	"xip/utils/config_file/json"
 )
 
 func SetDefault(path string, profile string) {
@@ -14,7 +19,7 @@ func SetDefault(path string, profile string) {
 		panic(fmt.Errorf("Profile %s probably does not exist\n", profile))
 	}
 
-	appConf := ini_config_file.AppConf()
+	appConf := ini.AppConf()
 	appConf.Set("aws.default_profile", profile)
 	_ = appConf.Write()
 
@@ -22,7 +27,7 @@ func SetDefault(path string, profile string) {
 }
 
 func GetDefault() string {
-	appConf := ini_config_file.AppConf()
+	appConf := ini.AppConf()
 	return appConf.GetString("aws.default_profile")
 }
 
@@ -69,11 +74,129 @@ func Login(profile string) {
 	}
 }
 
-func _GetConfig(path string) *ini_config_file.ConfigFileIni {
-	config, err := ini_config_file.New(path)
+func Sync(path string, profile string) {
+	config := _GetConfig(path)
+
+	var (
+		accessKeyId     string
+		secretAccessKey string
+		sessionToken    string
+	)
+
+	if config.IsSet("profile " + profile + ".sso_region") {
+		region := config.GetString("profile " + profile + ".sso_region")
+		startUrl := config.GetString("profile " + profile + ".sso_start_url")
+		accessToken := _GetSsoAccessToken(path, startUrl, region)
+
+		ssoCreds, err := exec.Command(
+			"aws", "sso", "get-role-credentials",
+			"--output", "json",
+			"--profile", profile,
+			"--region", region,
+			"--role-name", config.GetString("profile "+profile+".sso_role_name"),
+			"--account-id", config.GetString("profile "+profile+".sso_account_id"),
+			"--access-token", accessToken,
+		).Output()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var ssoCredsMapped map[string]map[string]interface{}
+		if err := json2.Unmarshal(ssoCreds, &ssoCredsMapped); err != nil {
+			return
+		}
+
+		accessKeyId = fmt.Sprintf("%v", ssoCredsMapped["roleCredentials"]["accessKeyId"])
+		secretAccessKey = fmt.Sprintf("%v", ssoCredsMapped["roleCredentials"]["secretAccessKey"])
+		sessionToken = fmt.Sprintf("%v", ssoCredsMapped["roleCredentials"]["sessionToken"])
+	} else {
+		roleArn := config.GetString("profile " + profile + ".role_arn")
+
+		ssoCreds, err := exec.Command(
+			"aws", "sts", "assume-role",
+			"--output", "json",
+			"--profile", profile,
+			"--role-arn", roleArn,
+			"--role-session-name", "tm",
+		).Output()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var ssoCredsMapped map[string]map[string]interface{}
+		if err := json2.Unmarshal(ssoCreds, &ssoCredsMapped); err != nil {
+			return
+		}
+
+		accessKeyId = fmt.Sprintf("%v", ssoCredsMapped["Credentials"]["AccessKeyId"])
+		secretAccessKey = fmt.Sprintf("%v", ssoCredsMapped["Credentials"]["SecretAccessKey"])
+		sessionToken = fmt.Sprintf("%v", ssoCredsMapped["Credentials"]["SessionToken"])
+	}
+
+	credentials := _GetConfig(filepath.Dir(path) + "/credentials")
+	credentials.Set(profile+".region", config.GetString("profile "+profile+".region"))
+	credentials.Set(profile+".aws_access_key_id", accessKeyId)
+	credentials.Set(profile+".aws_secret_access_key", secretAccessKey)
+	credentials.Set(profile+".aws_session_token", sessionToken)
+
+	if err := credentials.Write(); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Please restart your terminal session for the profile reload to happen or run:\n\nexport AWS_PROFILE=" + profile)
+}
+
+func _GetConfig(path string) *ini.ConfigFileIni {
+	config, err := ini.New(path)
 	if err != nil {
 		panic(fmt.Errorf("Fatal error reading config file: %s \n", err))
 	}
 
 	return config
+}
+
+func _GetJsonConfig(path string) *json.ConfigFileJson {
+	config, err := json.New(path)
+	if err != nil {
+		panic(fmt.Errorf("Fatal error reading config file: %s \n", err))
+	}
+
+	return config
+}
+
+func _GetSsoAccessToken(root string, startUrl string, region string) string {
+	var accessToken string
+
+	_ = filepath.Walk(filepath.Dir(root)+"/sso/cache", func(path string, info os.FileInfo, err error) error {
+		if filepath.Ext(path) != ".json" {
+			return nil
+		}
+
+		file, _ := ioutil.ReadFile(path)
+
+		var raw map[string]interface{}
+		if err := json2.Unmarshal(file, &raw); err != nil {
+			return nil
+		}
+
+		if _, ok := raw["accessToken"]; !ok {
+			return nil
+		}
+
+		if _, ok := raw["startUrl"]; !ok {
+			return nil
+		}
+
+		if _, ok := raw["region"]; !ok {
+			return nil
+		}
+
+		if raw["region"] == region && raw["startUrl"] == startUrl {
+			accessToken = fmt.Sprintf("%v", raw["accessToken"])
+		}
+
+		return nil
+	})
+
+	return accessToken
 }
