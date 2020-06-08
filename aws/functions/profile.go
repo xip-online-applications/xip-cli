@@ -146,6 +146,15 @@ func Sync(path string, profile string) {
 	fmt.Println("Please restart your terminal session for the profile reload to happen or run:\n\nexport AWS_PROFILE=" + profile)
 }
 
+func Identity() string {
+	identity, err := exec.Command("aws", "sts", "get-caller-identity").Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return string(identity)
+}
+
 func _GetConfig(path string) *ini.ConfigFileIni {
 	config, err := ini.New(path)
 	if err != nil {
