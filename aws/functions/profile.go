@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"time"
 	"xip/utils/config_file/ini"
 	"xip/utils/config_file/json"
 )
@@ -81,6 +83,7 @@ func Sync(path string, profile string) {
 		accessKeyId     string
 		secretAccessKey string
 		sessionToken    string
+		expirationTime  string
 	)
 
 	if config.IsSet("profile " + profile + ".sso_region") {
@@ -109,6 +112,12 @@ func Sync(path string, profile string) {
 		accessKeyId = fmt.Sprintf("%v", ssoCredsMapped["roleCredentials"]["accessKeyId"])
 		secretAccessKey = fmt.Sprintf("%v", ssoCredsMapped["roleCredentials"]["secretAccessKey"])
 		sessionToken = fmt.Sprintf("%v", ssoCredsMapped["roleCredentials"]["sessionToken"])
+
+		t1, _ := strconv.ParseFloat(fmt.Sprintf("%f", ssoCredsMapped["roleCredentials"]["expiration"]), 32)
+		t2 := int64(t1 / 1000)
+		t3 := time.Unix(t2, 0)
+
+		expirationTime = t3.Format(time.RFC3339)
 	} else {
 		roleArn := config.GetString("profile " + profile + ".role_arn")
 
@@ -118,6 +127,7 @@ func Sync(path string, profile string) {
 			"--profile", profile,
 			"--role-arn", roleArn,
 			"--role-session-name", "tm",
+			"--duration-seconds", "3600",
 		).Output()
 		if err != nil {
 			log.Fatal(err)
@@ -131,6 +141,7 @@ func Sync(path string, profile string) {
 		accessKeyId = fmt.Sprintf("%v", ssoCredsMapped["Credentials"]["AccessKeyId"])
 		secretAccessKey = fmt.Sprintf("%v", ssoCredsMapped["Credentials"]["SecretAccessKey"])
 		sessionToken = fmt.Sprintf("%v", ssoCredsMapped["Credentials"]["SessionToken"])
+		expirationTime = fmt.Sprintf("%v", ssoCredsMapped["Credentials"]["Expiration"])
 	}
 
 	credentials := _GetConfig(filepath.Dir(path) + "/credentials")
@@ -138,6 +149,7 @@ func Sync(path string, profile string) {
 	credentials.Set(profile+".aws_access_key_id", accessKeyId)
 	credentials.Set(profile+".aws_secret_access_key", secretAccessKey)
 	credentials.Set(profile+".aws_session_token", sessionToken)
+	credentials.Set(profile+".aws_session_expiration", expirationTime)
 
 	if err := credentials.Write(); err != nil {
 		panic(err)

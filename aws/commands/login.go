@@ -22,5 +22,8 @@ func Login() *cobra.Command {
 func LoginRun(cmd *cobra.Command, args []string) {
 	profile, _ := cmd.Flags().GetString("profile")
 
+	path, _ := cmd.Flags().GetString("config")
+
 	functions.Login(profile)
+	functions.Sync(path, profile)
 }
