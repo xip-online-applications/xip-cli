@@ -118,7 +118,7 @@ func Sync(path string, profile string) {
 		t2 := int64(t1 / 1000)
 		t3 := time.Unix(t2, 0)
 
-		expirationTime = t3.Format(time.RFC3339)
+		expirationTime = t3.Local().Format(time.RFC3339)
 	} else {
 		roleArn := config.GetString("profile " + profile + ".role_arn")
 
@@ -143,6 +143,9 @@ func Sync(path string, profile string) {
 		secretAccessKey = fmt.Sprintf("%v", ssoCredsMapped["Credentials"]["SecretAccessKey"])
 		sessionToken = fmt.Sprintf("%v", ssoCredsMapped["Credentials"]["SessionToken"])
 		expirationTime = fmt.Sprintf("%v", ssoCredsMapped["Credentials"]["Expiration"])
+
+		t1, _ := time.Parse(time.RFC3339, expirationTime)
+		expirationTime = t1.Local().Format(time.RFC3339)
 	}
 
 	credentials := _GetConfig(filepath.Dir(path) + "/credentials")

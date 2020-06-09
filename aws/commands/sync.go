@@ -17,14 +17,13 @@ func Sync() *cobra.Command {
 }
 
 func SyncRun(cmd *cobra.Command, args []string) {
-	var profile string
-	if len(args) > 0 {
-		profile = args[0]
-	} else {
-		profile = functions.GetDefault()
-	}
-
 	path, _ := cmd.Flags().GetString("config")
 
-	functions.Sync(path, profile)
+	if len(args) > 0 {
+		functions.Sync(path, args[0])
+	} else {
+		for _, value := range functions.GetAllProfileNames(path) {
+			functions.Sync(path, value)
+		}
+	}
 }
