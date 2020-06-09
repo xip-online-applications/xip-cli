@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"time"
 	"xip/utils/config_file/ini"
@@ -165,6 +166,36 @@ func Identity() string {
 	}
 
 	return string(identity)
+}
+
+func GetAllProfileNames(path string) []string {
+	config := _GetConfig(path)
+
+	allKeys := config.Keys()
+	profiles := make(map[string]string)
+
+	re := regexp.MustCompile("^profile (\\w+)\\..+$")
+
+	for _, value := range allKeys {
+		val := re.FindStringSubmatch(value)
+
+		if len(val) < 2 {
+			continue
+		}
+
+		if _, ok := profiles[val[1]]; ok {
+			continue
+		}
+
+		profiles[val[1]] = val[1]
+	}
+
+	var keys []string
+	for k := range profiles {
+		keys = append(keys, k)
+	}
+
+	return keys
 }
 
 func _GetConfig(path string) *ini.ConfigFileIni {

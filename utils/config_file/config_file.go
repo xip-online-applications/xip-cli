@@ -52,6 +52,10 @@ func (c *ConfigFile) Set(key string, value interface{}) {
 	c.viper.Set(key, value)
 }
 
+func (c *ConfigFile) Keys() []string {
+	return c.viper.AllKeys()
+}
+
 func (c *ConfigFile) Read() error {
 	if err := c.viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("Fatal error reading config file: %s \n", err)
