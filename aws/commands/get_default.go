@@ -17,5 +17,5 @@ func GetDefault() *cobra.Command {
 }
 
 func GetDefaultRun(cmd *cobra.Command, args []string) {
-	fmt.Println(functions.GetDefault())
+	fmt.Println(functions.GetDefaultProfile())
 }

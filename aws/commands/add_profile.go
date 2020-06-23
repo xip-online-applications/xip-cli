@@ -13,6 +13,8 @@ func AddProfile() *cobra.Command {
 		Run:   AddProfileRun,
 	}
 
+	cmd.Flags().StringP("source-profile", "p", functions.GetDefaultProfile(), "The source profile name to use")
+
 	return cmd
 }
 
@@ -21,7 +23,8 @@ func AddProfileRun(cmd *cobra.Command, args []string) {
 	profile := args[0]
 
 	path, _ := cmd.Flags().GetString("config")
+	sourceProfile, _ := cmd.Flags().GetString("profile")
 
-	functions.CreateOrUpdateRoleAssumeProfile(path, profile, "xip", role)
+	functions.CreateOrUpdateRoleAssumeProfile(path, profile, sourceProfile, role)
 	functions.SetDefault(path, profile)
 }

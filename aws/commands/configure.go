@@ -7,13 +7,13 @@ import (
 
 func Configure() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "configure [role]",
+		Use:   "configure [role] [sso start url] [account id]",
 		Short: "Configure AWS CLI SSO by providing the role. This role will be provided to you by your administrator.",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(3),
 		Run:   ConfigureRun,
 	}
 
-	cmd.Flags().StringP("profile", "p", "xip", "The profile name to use")
+	cmd.Flags().StringP("profile", "p", functions.GetDefaultProfile(), "The profile name to use")
 	cmd.Flags().StringP("region", "r", "eu-west-1", "The region of your org")
 
 	return cmd
@@ -21,11 +21,13 @@ func Configure() *cobra.Command {
 
 func ConfigureRun(cmd *cobra.Command, args []string) {
 	role := args[0]
+	startUrl := args[1]
+	accountId := args[2]
 
 	path, _ := cmd.Flags().GetString("config")
 	profile, _ := cmd.Flags().GetString("profile")
 	region, _ := cmd.Flags().GetString("region")
 
-	functions.CreateOrUpdateSsoProfile(path, profile, role, region)
+	functions.CreateOrUpdateSsoProfile(path, profile, role, region, startUrl, accountId)
 	functions.SetDefault(path, profile)
 }

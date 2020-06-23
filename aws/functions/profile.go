@@ -29,19 +29,19 @@ func SetDefault(path string, profile string) {
 	fmt.Println("Please restart your terminal session for the profile reload to happen or run:\n\nexport AWS_DEFAULT_PROFILE=" + profile)
 }
 
-func GetDefault() string {
+func GetDefaultProfile() string {
 	appConf := ini.AppConf()
 	return appConf.GetString("aws.default_profile")
 }
 
-func CreateOrUpdateSsoProfile(path string, profile string, role string, region string) {
+func CreateOrUpdateSsoProfile(path string, profile string, role string, region string, startUrl string, accountId string) {
 	config := _GetConfig(path)
 
 	profileName := "profile " + profile
 
-	config.Set(profileName+".sso_start_url", "https://xip.awsapps.com/start")
-	config.Set(profileName+".sso_region", "eu-west-1")
-	config.Set(profileName+".sso_account_id", "616582671099")
+	config.Set(profileName+".sso_start_url", startUrl)
+	config.Set(profileName+".sso_region", region)
+	config.Set(profileName+".sso_account_id", accountId)
 	config.Set(profileName+".sso_role_name", role)
 	config.Set(profileName+".region", region)
 	config.Set(profileName+".output", "json")
