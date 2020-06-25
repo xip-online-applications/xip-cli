@@ -177,7 +177,37 @@ func GetAllProfileNames(path string) []string {
 	allKeys := config.Keys()
 	profiles := make(map[string]string)
 
-	re := regexp.MustCompile("^profile (\\w+)\\..+$")
+	re := regexp.MustCompile("^profile ([\\w\\-\\_]+)\\..+$")
+
+	for _, value := range allKeys {
+		val := re.FindStringSubmatch(value)
+
+		if len(val) < 2 {
+			continue
+		}
+
+		if _, ok := profiles[val[1]]; ok {
+			continue
+		}
+
+		profiles[val[1]] = val[1]
+	}
+
+	var keys []string
+	for k := range profiles {
+		keys = append(keys, k)
+	}
+
+	return keys
+}
+
+func GetAllSsoProfileNames(path string) []string {
+	config := _GetConfig(path)
+
+	allKeys := config.Keys()
+	profiles := make(map[string]string)
+
+	re := regexp.MustCompile("^profile (\\w+)\\.sso_start_url$")
 
 	for _, value := range allKeys {
 		val := re.FindStringSubmatch(value)

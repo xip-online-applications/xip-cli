@@ -9,7 +9,7 @@ func Sync() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync [profile name]",
 		Short: "Sync credentials to the credentials file",
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.RangeArgs(0, 1),
 		Run:   SyncRun,
 	}
 
@@ -19,7 +19,7 @@ func Sync() *cobra.Command {
 func SyncRun(cmd *cobra.Command, args []string) {
 	path, _ := cmd.Flags().GetString("config")
 
-	if len(args) > 0 {
+	if len(args) == 1 {
 		functions.Sync(path, args[0])
 	} else {
 		for _, value := range functions.GetAllProfileNames(path) {

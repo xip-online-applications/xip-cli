@@ -7,23 +7,25 @@ import (
 
 func AddProfile() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add [profile name] [role arn]",
-		Short: "Add a new role by providing the Role ARN",
-		Args:  cobra.ExactArgs(2),
+		Use:   "add [profile name] [role arn] [source profile]",
+		Short: "Add a new role by providing the Role ARN and possibly the source profile",
+		Args:  cobra.RangeArgs(2, 3),
 		Run:   AddProfileRun,
 	}
-
-	cmd.Flags().StringP("source-profile", "p", functions.GetDefaultProfile(), "The source profile name to use")
 
 	return cmd
 }
 
 func AddProfileRun(cmd *cobra.Command, args []string) {
-	role := args[1]
 	profile := args[0]
+	role := args[1]
+
+	sourceProfile := functions.GetDefaultProfile()
+	if len(args) == 3 {
+		sourceProfile = args[2]
+	}
 
 	path, _ := cmd.Flags().GetString("config")
-	sourceProfile, _ := cmd.Flags().GetString("profile")
 
 	functions.CreateOrUpdateRoleAssumeProfile(path, profile, sourceProfile, role)
 	functions.SetDefault(path, profile)

@@ -13,7 +13,7 @@ func Configure() *cobra.Command {
 		Run:   ConfigureRun,
 	}
 
-	cmd.Flags().StringP("profile", "p", functions.GetDefaultProfile(), "The profile name to use")
+	cmd.Flags().StringP("profile", "p", "default", "The profile name to use")
 	cmd.Flags().StringP("region", "r", "eu-west-1", "The region of your org")
 
 	return cmd

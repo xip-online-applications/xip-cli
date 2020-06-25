@@ -14,10 +14,9 @@ func Aws() *cobra.Command {
 	}
 
 	cmd.AddCommand(commands.Configure())
-	cmd.AddCommand(commands.Default())
 	cmd.AddCommand(commands.Login())
 	cmd.AddCommand(commands.AddProfile())
-	cmd.AddCommand(commands.GetDefault())
+	cmd.AddCommand(commands.Default())
 	cmd.AddCommand(commands.Sync())
 	cmd.AddCommand(commands.Identity())
 
