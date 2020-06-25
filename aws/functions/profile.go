@@ -26,6 +26,8 @@ func SetDefault(path string, profile string) {
 	appConf.Set("aws.default_profile", profile)
 	_ = appConf.Write()
 
+	_ = os.Setenv("AWS_PROFILE", profile)
+	_ = os.Setenv("AWS_DEFAULT_PROFILE", profile)
 	fmt.Println("Please restart your terminal session for the profile reload to happen or run:\n\nexport AWS_DEFAULT_PROFILE=" + profile)
 }
 

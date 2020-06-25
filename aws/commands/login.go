@@ -5,8 +5,6 @@ import (
 	"xip/aws/functions"
 )
 
-var loginProfile string
-
 func Login() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login [profile]",
@@ -14,8 +12,6 @@ func Login() *cobra.Command {
 		Args:  cobra.RangeArgs(0, 1),
 		Run:   LoginRun,
 	}
-
-	cmd.Flags().StringVarP(&loginProfile, "profile", "p", "xip", "The profile to use")
 
 	return cmd
 }
