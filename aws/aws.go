@@ -19,6 +19,7 @@ func Aws() *cobra.Command {
 	cmd.AddCommand(commands.Default())
 	cmd.AddCommand(commands.Sync())
 	cmd.AddCommand(commands.Identity())
+	cmd.AddCommand(commands.Kubectl())
 
 	usr, _ := user.Current()
 	cmd.PersistentFlags().StringVarP(&configFilePath, "config", "c", usr.HomeDir+"/.aws/config", "AWS config file path")
