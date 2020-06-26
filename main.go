@@ -9,7 +9,7 @@ import (
 
 func main() {
 	cmd := &cobra.Command{
-		Use: "xip",
+		Use: "x-ip",
 	}
 
 	cmd.AddCommand(aws.Aws())
