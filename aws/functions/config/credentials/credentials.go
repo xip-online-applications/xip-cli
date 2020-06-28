@@ -55,17 +55,21 @@ func (credentials *Credentials) FromRoleCredentials(region string, roleCredentia
 func (credentials *Credentials) Get() *Values {
 	_ = credentials.File.Read()
 
-	if !credentials.File.IsSet(credentials.Profile + ".region") {
+	return credentials.ForProfile(credentials.Profile)
+}
+
+func (credentials *Credentials) ForProfile(profile string) *Values {
+	if !credentials.File.IsSet(profile + ".region") {
 		return nil
 	}
 
-	timeParsed, _ := time.Parse(time.RFC3339, credentials.File.GetString(credentials.Profile+".aws_session_expiration"))
+	timeParsed, _ := time.Parse(time.RFC3339, credentials.File.GetString(profile+".aws_session_expiration"))
 
 	return &Values{
-		Region:            credentials.File.GetString(credentials.Profile + ".region"),
-		AccessKeyId:       credentials.File.GetString(credentials.Profile + ".aws_access_key_id"),
-		SecretAccessKey:   credentials.File.GetString(credentials.Profile + ".aws_secret_access_key"),
-		SessionToken:      credentials.File.GetString(credentials.Profile + ".aws_session_token"),
+		Region:            credentials.File.GetString(profile + ".region"),
+		AccessKeyId:       credentials.File.GetString(profile + ".aws_access_key_id"),
+		SecretAccessKey:   credentials.File.GetString(profile + ".aws_secret_access_key"),
+		SessionToken:      credentials.File.GetString(profile + ".aws_session_token"),
 		SessionExpiration: timeParsed,
 	}
 }

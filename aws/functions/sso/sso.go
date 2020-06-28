@@ -74,7 +74,10 @@ func (sso *Sso) _Setup() {
 
 }
 
-func (sso *Sso) Login() {
+func (sso *Sso) Login(creds credentials.Values) {
+	sso._AwsSession.Config.Region = &creds.Region
+	sso._Setup()
+
 	// Register the device if needed
 	sso._RegisterClient()
 
@@ -106,8 +109,17 @@ func (sso *Sso) Configure(values ConfigureValues) {
 	sso._AwsSession.Config.Region = values.Region
 	sso._Setup()
 
+	// Credentials config
+	creds := credentials.Values{
+		Region:            *values.Region,
+		AccessKeyId:       "",
+		SecretAccessKey:   "",
+		SessionToken:      "",
+		SessionExpiration: time.Time{},
+	}
+
 	// Register the device if needed
-	sso.Login()
+	sso.Login(creds)
 }
 
 func (sso *Sso) _LoadConfig() {

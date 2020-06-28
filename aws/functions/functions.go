@@ -3,9 +3,8 @@ package functions
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"log"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"os"
-	"os/exec"
 	"regexp"
 	"xip/aws/functions/config/app"
 	"xip/aws/functions/config/config"
@@ -13,6 +12,8 @@ import (
 )
 
 type Functions struct {
+	AwsSession *session.Session
+
 	AppConfiguration *app.App
 	AwsConfig        *config.Config
 	SsoClient        *sso.Sso
@@ -25,12 +26,26 @@ func New() *Functions {
 		return nil
 	}
 
-	sess := session.Must(session.NewSession())
+	var (
+		prof    = appConfig.Get().DefaultProfile
+		profile = ""
+	)
+
+	if prof != nil {
+		profile = *prof
+	}
+
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+		Profile:           profile,
+	}))
+
 	awsConfig := config.New(appConfig)
 
 	Sso := sso.New(*sess, appConfig, awsConfig)
 
 	return &Functions{
+		AwsSession:       sess,
 		AppConfiguration: &appConfig,
 		AwsConfig:        &awsConfig,
 		SsoClient:        &Sso,
@@ -67,17 +82,26 @@ func (f *Functions) AddProfile(profile string, sourceProfile string, role string
 }
 
 func (f *Functions) Login(profile string) {
+	creds := f.SsoClient.CredentialsConfig.ForProfile(profile)
+	if creds == nil {
+		panic("no credentials found for given profile")
+	}
+
 	f.SetDefault(profile)
-	f.SsoClient.Login()
+	f.SsoClient.Login(*creds)
 }
 
 func (f *Functions) Identity() string {
-	identity, err := exec.Command("aws", "sts", "get-caller-identity").Output()
+	stsClient := sts.New(f.AwsSession)
+
+	input := &sts.GetCallerIdentityInput{}
+	identity, err := stsClient.GetCallerIdentity(input)
+
 	if err != nil {
-		log.Fatal(err)
+		panic("could not retrieve identity")
 	}
 
-	return string(identity)
+	return *identity.UserId
 }
 
 func (f *Functions) GetAllSsoProfileNames() []string {
