@@ -2,32 +2,43 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
-	"xip/aws/functions"
 )
 
-func Login() *cobra.Command {
+func (c *AwsCommands) Login() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login [profile]",
-		Short: "Login to the SSO.",
+		Short: "Login to the SSO. If profile is omitted, the current default will be logged in.",
 		Args:  cobra.RangeArgs(0, 1),
-		Run:   LoginRun,
+		Run:   c.LoginRun,
 	}
+
+	cmd.Flags().BoolP("all", "a", false, "Run for all profiles")
 
 	return cmd
 }
 
-func LoginRun(cmd *cobra.Command, args []string) {
-	path, _ := cmd.Flags().GetString("config")
+func (c *AwsCommands) LoginRun(cmd *cobra.Command, args []string) {
+	all, _ := cmd.Flags().GetBool("all")
 
-	if len(args) == 1 {
-		functions.Login(args[0])
-	} else {
-		for _, value := range functions.GetAllSsoProfileNames(path) {
-			functions.Login(value)
+	if all == true {
+		currentDefault, _ := c.Functions.GetDefaultProfile()
+		if currentDefault == nil {
+			currentDefault = new(string)
 		}
-	}
 
-	for _, value := range functions.GetAllProfileNames(path) {
-		functions.Sync(path, value)
+		for _, value := range c.Functions.GetAllSsoProfileNames() {
+			c.Functions.Login(value)
+		}
+
+		c.Functions.SetDefault(*currentDefault)
+	} else if len(args) == 1 {
+		c.Functions.Login(args[0])
+	} else {
+		profile, err := c.Functions.GetDefaultProfile()
+		if err != nil {
+			panic("No default profile found.")
+		}
+
+		c.Functions.Login(*profile)
 	}
 }

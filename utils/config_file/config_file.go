@@ -48,8 +48,22 @@ func (c *ConfigFile) GetString(key string) string {
 	return c.viper.GetString(key)
 }
 
-func (c *ConfigFile) Set(key string, value interface{}) {
-	c.viper.Set(key, value)
+func (c *ConfigFile) GetStringOptional(key string) *string {
+	if !c.IsSet(key) {
+		return nil
+	}
+
+	val := c.viper.GetString(key)
+
+	return &val
+}
+
+func (c *ConfigFile) Set(key string, value *string) {
+	if value == nil {
+		c.viper.Set(key, "")
+	} else {
+		c.viper.Set(key, *value)
+	}
 }
 
 func (c *ConfigFile) Keys() []string {
