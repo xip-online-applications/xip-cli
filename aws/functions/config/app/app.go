@@ -10,11 +10,13 @@ type App struct {
 }
 
 type Values struct {
-	DefaultProfile   *string
-	ClientId         *string
-	ClientSecret     *string
-	ClientExpiration *time.Time
-	AwsConfigPath    *string
+	DefaultProfile        *string
+	AwsConfigPath         *string
+	ClientId              *string
+	ClientSecret          *string
+	ClientExpiration      *time.Time
+	AccessToken           *string
+	AccessTokenExpiration *time.Time
 }
 
 func New() App {
@@ -24,27 +26,46 @@ func New() App {
 }
 
 func (app *App) Set(input Values) {
-	var expiration *string
+	var clientExpiration *string
 	if input.ClientExpiration != nil {
 		_expiration := input.ClientExpiration.Local().Format(time.RFC3339)
-		expiration = &_expiration
+		clientExpiration = &_expiration
+	}
+
+	var accessTokenExpiration *string
+	if input.AccessTokenExpiration != nil {
+		_expiration := input.AccessTokenExpiration.Local().Format(time.RFC3339)
+		accessTokenExpiration = &_expiration
 	}
 
 	_ = app.File.Read()
 	app.File.Set("aws.default_profile", input.DefaultProfile)
+	app.File.Set("aws.config_path", input.AwsConfigPath)
 	app.File.Set("aws.client_id", input.ClientId)
 	app.File.Set("aws.client_secret", input.ClientSecret)
-	app.File.Set("aws.client_expiration", expiration)
-	app.File.Set("aws.config_path", input.AwsConfigPath)
+	app.File.Set("aws.client_expiration", clientExpiration)
+	app.File.Set("aws.access_token", input.AccessToken)
+	app.File.Set("aws.access_token_expiration", accessTokenExpiration)
 	_ = app.File.Write()
 }
 
 func (app *App) Get() Values {
 	_ = app.File.Read()
 
+	return Values{
+		DefaultProfile:        app.File.GetStringOptional("aws.default_profile"),
+		AwsConfigPath:         app.File.GetStringOptional("aws.config_path"),
+		ClientId:              app.File.GetStringOptional("aws.client_id"),
+		ClientSecret:          app.File.GetStringOptional("aws.client_secret"),
+		ClientExpiration:      app.ParseToTime(app.File.GetStringOptional("aws.client_expiration")),
+		AccessToken:           app.File.GetStringOptional("aws.access_token"),
+		AccessTokenExpiration: app.ParseToTime(app.File.GetStringOptional("aws.access_token_expiration")),
+	}
+}
+
+func (app *App) ParseToTime(timeRaw *string) *time.Time {
 	var (
 		timeParsed *time.Time
-		timeRaw    *string = app.File.GetStringOptional("aws.client_expiration")
 	)
 
 	if timeRaw != nil {
@@ -52,13 +73,7 @@ func (app *App) Get() Values {
 		timeParsed = &_timeParsed
 	}
 
-	return Values{
-		DefaultProfile:   app.File.GetStringOptional("aws.default_profile"),
-		ClientId:         app.File.GetStringOptional("aws.client_id"),
-		ClientSecret:     app.File.GetStringOptional("aws.client_secret"),
-		ClientExpiration: timeParsed,
-		AwsConfigPath:    app.File.GetStringOptional("aws.config_path"),
-	}
+	return timeParsed
 }
 
 func (app *App) Initialized() bool {

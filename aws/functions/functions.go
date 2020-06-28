@@ -78,7 +78,15 @@ func (f *Functions) GetDefaultProfile() (*string, error) {
 }
 
 func (f *Functions) AddProfile(profile string, sourceProfile string, role string) {
-	f.AddProfile(profile, sourceProfile, role)
+	source := f.AwsConfig.GetSsoProfile(sourceProfile)
+
+	f.AwsConfig.SetRoleProfile(config.RoleProfile{
+		Name:          profile,
+		SourceProfile: sourceProfile,
+		RoleArn:       role,
+		Region:        source.Region,
+		Output:        source.Output,
+	})
 }
 
 func (f *Functions) Login(profile string) {

@@ -32,15 +32,16 @@ type Sso struct {
 	CredentialsConfig *credentials.Credentials
 
 	// Persisted information
-	ClientId         *string
-	ClientSecret     *string
-	ClientExpiration *time.Time
+	ClientId              *string
+	ClientSecret          *string
+	ClientExpiration      *time.Time
+	AccessToken           *string
+	AccessTokenExpiration *time.Time
 
 	// On-the-fly information
 	DeviceCode           *string
 	DeviceCodeExpiration *int32
 	UserCode             *string
-	AccessToken          *string
 }
 
 // https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html
@@ -81,8 +82,10 @@ func (sso *Sso) Login(creds credentials.Values) {
 	// Register the device if needed
 	sso._RegisterClient()
 
-	// Authorize the device
-	sso._AuthorizeDevice()
+	if !sso._AccessTokenValid() {
+		// Authorize the device
+		sso._AuthorizeDevice()
+	}
 
 	// Retrieve the role credentials by assuming it
 	sso._RetrieveRoleCredentials()
@@ -132,6 +135,8 @@ func (sso *Sso) _LoadConfig() {
 	sso.ClientId = clientValues.ClientId
 	sso.ClientSecret = clientValues.ClientSecret
 	sso.ClientExpiration = clientValues.ClientExpiration
+	sso.AccessToken = clientValues.AccessToken
+	sso.AccessTokenExpiration = clientValues.AccessTokenExpiration
 }
 
 func (sso *Sso) _SaveConfig() {
@@ -140,6 +145,8 @@ func (sso *Sso) _SaveConfig() {
 	values.ClientId = sso.ClientId
 	values.ClientSecret = sso.ClientSecret
 	values.ClientExpiration = sso.ClientExpiration
+	values.AccessToken = sso.AccessToken
+	values.AccessTokenExpiration = sso.AccessTokenExpiration
 
 	sso.AppConfig.Set(values)
 }
@@ -177,7 +184,7 @@ func (sso *Sso) _AuthorizeDevice() {
 		return
 	}
 
-	conf := sso.ConfigConfig.GetSsoProfile()
+	conf := sso.ConfigConfig.GetSsoProfile(*sso.ConfigConfig.Profile)
 
 	clientInput := &ssooidc.StartDeviceAuthorizationInput{
 		ClientId:     sso.ClientId,
@@ -202,6 +209,10 @@ func (sso *Sso) _AuthorizeDevice() {
 }
 
 func (sso *Sso) _CreateToken(retryCount int, interval int) {
+	if sso._AccessTokenValid() {
+		return
+	}
+
 	grantType := "urn:ietf:params:oauth:grant-type:device_code"
 
 	clientInput := &ssooidc.CreateTokenInput{
@@ -222,7 +233,12 @@ func (sso *Sso) _CreateToken(retryCount int, interval int) {
 			continue
 		}
 
+		expiration := helpers.IntToTime(int(time.Now().Unix() + *output.ExpiresIn))
+
 		sso.AccessToken = output.AccessToken
+		sso.AccessTokenExpiration = &expiration
+
+		sso._SaveConfig()
 
 		return
 	}
@@ -230,12 +246,20 @@ func (sso *Sso) _CreateToken(retryCount int, interval int) {
 	panic("Failed to create token")
 }
 
+func (sso *Sso) _AccessTokenValid() bool {
+	if sso.AccessToken == nil {
+		return false
+	}
+
+	return sso.AccessTokenExpiration != nil && time.Now().Before(*sso.AccessTokenExpiration)
+}
+
 func (sso *Sso) _RetrieveRoleCredentials() {
 	if sso.CredentialsConfig.Valid() {
 		return
 	}
 
-	conf := sso.ConfigConfig.GetSsoProfile()
+	conf := sso.ConfigConfig.GetSsoProfile(*sso.ConfigConfig.Profile)
 
 	input := ssos.GetRoleCredentialsInput{
 		AccessToken: sso.AccessToken,
