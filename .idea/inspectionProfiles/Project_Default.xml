@@ -14,6 +14,7 @@
         <method importPath="strings" receiver="*Builder" name="WriteRune" />
         <method importPath="math/rand" receiver="*Rand" name="Read" />
         <method importPath="github.com/aws/aws-sdk-go/service/ssooidc" receiver="*SSOOIDC" name="RegisterClient" />
+        <method importPath="xip/aws/functions/kubectl" receiver="*Kubectl" name="RemoveCertificate" />
       </methods>
     </inspection_tool>
   </profile>

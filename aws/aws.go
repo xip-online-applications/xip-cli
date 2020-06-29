@@ -22,7 +22,7 @@ func Aws() *cobra.Command {
 	cmd.AddCommand(cmds.Login())
 	cmd.AddCommand(cmds.AddProfile())
 	cmd.AddCommand(cmds.Default())
-	cmd.AddCommand(cmds.Sync())
+	cmd.AddCommand(cmds.Kubectl())
 	cmd.AddCommand(cmds.Identity())
 
 	return cmd

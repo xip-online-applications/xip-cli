@@ -21,7 +21,10 @@ func (c *AwsCommands) DefaultRun(cmd *cobra.Command, args []string) {
 		c.Functions.SetDefault(args[0])
 	}
 
-	prof, _ := c.Functions.GetDefaultProfile()
+	prof, err := c.Functions.GetDefaultProfile()
+	if err != nil {
+		panic(err)
+	}
 
-	fmt.Println(*prof)
+	fmt.Println(prof)
 }

@@ -100,11 +100,15 @@ func (sso *Sso) Configure(values ConfigureValues) {
 	// Save the new configuration
 	ConfigConfig := config.New(*sso.AppConfig)
 	ConfigConfig.SetSsoProfile(config.SsoProfile{
+		Common: config.Profile{
+			Name:   *values.Profile,
+			Region: *values.Region,
+			Output: "json",
+		},
 		StartUrl:  *values.StartUrl,
-		Region:    *values.Region,
 		AccountId: *values.AccountId,
 		Role:      *values.RoleName,
-		Output:    "json",
+		SsoRegion: *values.Region,
 	})
 	sso.ConfigConfig = &ConfigConfig
 
@@ -184,7 +188,10 @@ func (sso *Sso) _AuthorizeDevice() {
 		return
 	}
 
-	conf := sso.ConfigConfig.GetSsoProfile(*sso.ConfigConfig.Profile)
+	conf, err := sso.ConfigConfig.GetSsoProfile(*sso.ConfigConfig.Profile)
+	if err != nil {
+		return
+	}
 
 	clientInput := &ssooidc.StartDeviceAuthorizationInput{
 		ClientId:     sso.ClientId,
@@ -259,7 +266,10 @@ func (sso *Sso) _RetrieveRoleCredentials() {
 		return
 	}
 
-	conf := sso.ConfigConfig.GetSsoProfile(*sso.ConfigConfig.Profile)
+	conf, err := sso.ConfigConfig.GetSsoProfile(*sso.ConfigConfig.Profile)
+	if err != nil {
+		return
+	}
 
 	input := ssos.GetRoleCredentialsInput{
 		AccessToken: sso.AccessToken,
@@ -272,5 +282,5 @@ func (sso *Sso) _RetrieveRoleCredentials() {
 		panic(err)
 	}
 
-	sso.CredentialsConfig.FromRoleCredentials(conf.Region, *output.RoleCredentials)
+	sso.CredentialsConfig.FromRoleCredentials(conf.Common.Region, *output.RoleCredentials)
 }

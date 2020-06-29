@@ -21,12 +21,12 @@ func (c *AwsCommands) AddProfileRun(cmd *cobra.Command, args []string) {
 
 	sourceProfile, _ := c.Functions.GetDefaultProfile()
 	if len(args) == 3 {
-		sourceProfile = &args[2]
+		sourceProfile = args[2]
 	}
 
-	if sourceProfile == nil {
+	if len(sourceProfile) == 0 {
 		panic("Source profile is empty.")
 	}
 
-	c.Functions.AddProfile(profile, *sourceProfile, role)
+	c.Functions.AddProfile(profile, sourceProfile, role)
 }

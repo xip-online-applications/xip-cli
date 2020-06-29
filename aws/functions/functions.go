@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"xip/aws/functions/config/app"
 	"xip/aws/functions/config/config"
+	"xip/aws/functions/kubectl"
 	"xip/aws/functions/sso"
 )
 
@@ -17,6 +18,7 @@ type Functions struct {
 	AppConfiguration *app.App
 	AwsConfig        *config.Config
 	SsoClient        *sso.Sso
+	KubectlClient    *kubectl.Kubectl
 }
 
 func New() *Functions {
@@ -41,14 +43,15 @@ func New() *Functions {
 	}))
 
 	awsConfig := config.New(appConfig)
-
 	Sso := sso.New(*sess, appConfig, awsConfig)
+	Kubectl := kubectl.New(sess, &awsConfig)
 
 	return &Functions{
 		AwsSession:       sess,
 		AppConfiguration: &appConfig,
 		AwsConfig:        &awsConfig,
 		SsoClient:        &Sso,
+		KubectlClient:    &Kubectl,
 	}
 }
 
@@ -67,25 +70,27 @@ func (f *Functions) SetDefault(profile string) {
 	fmt.Println("Please restart your terminal session for the profile reload to happen or run:\n\nexport AWS_DEFAULT_PROFILE=" + profile)
 }
 
-func (f *Functions) GetDefaultProfile() (*string, error) {
+func (f *Functions) GetDefaultProfile() (string, error) {
 	prof := f.AppConfiguration.Get().DefaultProfile
 
 	if prof == nil {
-		return nil, fmt.Errorf("no default profile found")
+		return "", fmt.Errorf("no default profile found")
 	}
 
-	return prof, nil
+	return *prof, nil
 }
 
 func (f *Functions) AddProfile(profile string, sourceProfile string, role string) {
-	source := f.AwsConfig.GetSsoProfile(sourceProfile)
+	source, _ := f.AwsConfig.GetSsoProfile(sourceProfile)
 
-	f.AwsConfig.SetRoleProfile(config.RoleProfile{
-		Name:          profile,
+	f.AwsConfig.SetAliasProfile(config.AliasProfile{
+		Common: config.Profile{
+			Name:   profile,
+			Region: source.Common.Region,
+			Output: source.Common.Output,
+		},
 		SourceProfile: sourceProfile,
 		RoleArn:       role,
-		Region:        source.Region,
-		Output:        source.Output,
 	})
 }
 
@@ -113,9 +118,9 @@ func (f *Functions) Identity() string {
 }
 
 func (f *Functions) GetAllSsoProfileNames() []string {
-	config := f.SsoClient.ConfigConfig.File
+	confFile := f.SsoClient.ConfigConfig.File
 
-	allKeys := config.Keys()
+	allKeys := confFile.Keys()
 	profiles := make(map[string]string)
 
 	re := regexp.MustCompile("^profile (\\w+)\\.sso_start_url$")
@@ -140,4 +145,8 @@ func (f *Functions) GetAllSsoProfileNames() []string {
 	}
 
 	return keys
+}
+
+func (f *Functions) RegisterKubectlProfile(clusterName string, roleArn string, profile string, namespace string, alias string) error {
+	return f.KubectlClient.RegisterProfile(clusterName, roleArn, profile, namespace, alias)
 }

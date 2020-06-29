@@ -12,33 +12,24 @@ func (c *AwsCommands) Login() *cobra.Command {
 		Run:   c.LoginRun,
 	}
 
-	cmd.Flags().BoolP("all", "a", false, "Run for all profiles")
-
 	return cmd
 }
 
 func (c *AwsCommands) LoginRun(cmd *cobra.Command, args []string) {
-	all, _ := cmd.Flags().GetBool("all")
-
-	if all == true {
+	if len(args) == 1 {
+		c.Functions.Login(args[0])
+	} else {
 		currentDefault, _ := c.Functions.GetDefaultProfile()
-		if currentDefault == nil {
-			currentDefault = new(string)
-		}
+		defer c.Functions.SetDefault(currentDefault)
 
 		for _, value := range c.Functions.GetAllSsoProfileNames() {
 			c.Functions.Login(value)
+
+			if len(currentDefault) == 0 {
+				currentDefault = value
+			}
 		}
 
-		c.Functions.SetDefault(*currentDefault)
-	} else if len(args) == 1 {
-		c.Functions.Login(args[0])
-	} else {
-		profile, err := c.Functions.GetDefaultProfile()
-		if err != nil {
-			panic("No default profile found.")
-		}
-
-		c.Functions.Login(*profile)
+		c.Functions.SetDefault(currentDefault)
 	}
 }
