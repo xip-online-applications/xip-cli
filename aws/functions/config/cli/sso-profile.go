@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -36,7 +35,7 @@ func NewSsoProfile(FileName string, AccessKeyId string, SecretAccessKey string, 
 }
 
 func CreateSsoProfileFileName(AccountId string, RoleName string, StartUrl string) string {
-	name, _ := json.MarshalIndent(struct {
+	name, _ := json.Marshal(struct {
 		AccountId string `json:"accountId"`
 		RoleName  string `json:"roleName"`
 		StartUrl  string `json:"startUrl"`
@@ -44,12 +43,10 @@ func CreateSsoProfileFileName(AccountId string, RoleName string, StartUrl string
 		AccountId: AccountId,
 		RoleName:  RoleName,
 		StartUrl:  StartUrl,
-	}, "", "")
-
-	nameString := strings.ReplaceAll(string(name), "\n", "")
+	})
 
 	h := sha1.New()
-	h.Write([]byte(nameString))
+	h.Write([]byte(name))
 	return hex.EncodeToString(h.Sum(nil))
 }
 
