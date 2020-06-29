@@ -2,6 +2,7 @@ package sso
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -36,6 +37,7 @@ type Sso struct {
 
 	// On-the-fly information
 	deviceCodeExpiration *int32
+	retryCount           int8
 }
 
 // https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html
@@ -54,6 +56,21 @@ func New(awsSession session.Session, appConfig app.App) Sso {
 }
 
 func (s *Sso) Login(Profile string) {
+	// Retry mechanism
+	defer func() {
+		if err := recover(); err == nil {
+			return
+		}
+
+		if s.retryCount > 3 {
+			_, _ = fmt.Fprintf(os.Stderr, "Failed too many times\n")
+			os.Exit(1)
+		}
+
+		s.retryCount++
+		s.Login(Profile)
+	}()
+
 	// Register the device if needed
 	s.registerClient()
 
@@ -218,6 +235,7 @@ func (s *Sso) retrieveRoleCredentials(Profile string) {
 
 	output, err := s.ssoClient.GetRoleCredentials(&input)
 	if err != nil {
+		ssoProfile.Delete()
 		panic(err)
 	}
 

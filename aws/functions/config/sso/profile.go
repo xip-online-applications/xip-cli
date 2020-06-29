@@ -82,3 +82,7 @@ func (p *Profile) Save() {
 	_ = os.MkdirAll(filepath.Dir(p.FileName), 0777)
 	_ = ioutil.WriteFile(p.FileName, clientJsonEncoded, 0644)
 }
+
+func (p *Profile) Delete() {
+	_ = os.Remove(p.FileName)
+}
