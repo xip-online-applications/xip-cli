@@ -19,17 +19,6 @@ func (c *AwsCommands) LoginRun(cmd *cobra.Command, args []string) {
 	if len(args) == 1 {
 		c.Functions.Login(args[0])
 	} else {
-		currentDefault, _ := c.Functions.GetDefaultProfile()
-		defer c.Functions.SetDefault(currentDefault)
-
-		for _, value := range c.Functions.GetAllSsoProfileNames() {
-			c.Functions.Login(value)
-
-			if len(currentDefault) == 0 {
-				currentDefault = value
-			}
-		}
-
-		c.Functions.SetDefault(currentDefault)
+		c.Functions.Login("")
 	}
 }

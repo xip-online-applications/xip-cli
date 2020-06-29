@@ -23,12 +23,6 @@ func InitializeRun(cmd *cobra.Command, args []string) {
 	appConfig := app.New()
 	values := appConfig.Get()
 
-	// Retrieve flag values
-	awsConfigFilePath, _ := cmd.Flags().GetString("config")
-
-	// SetSsoProfile the values
-	values.AwsConfigPath = &awsConfigFilePath
-
 	// Update app configuration
 	appConfig.Set(values)
 }

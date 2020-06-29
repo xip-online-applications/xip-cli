@@ -34,4 +34,5 @@ func (c *AwsCommands) ConfigureRun(cmd *cobra.Command, args []string) {
 		AccountId: &accountId,
 		RoleName:  &role,
 	})
+	c.Functions.Login(profile)
 }

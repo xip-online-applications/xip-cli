@@ -27,12 +27,6 @@ func New(AwsSession *session.Session, AwsConfig *config.Config) Kubectl {
 }
 
 func (k *Kubectl) RegisterProfile(clusterName string, roleArn string, profile string, namespace string, alias string) error {
-	// Retrieve the credentials of the profile
-	profileCredentials := k.AwsConfig.GetProfile(profile)
-	if profileCredentials == nil {
-		return fmt.Errorf("could not retrieve credentials for profile " + profile)
-	}
-
 	var (
 		err             error
 		cluster         eks.Cluster
@@ -41,6 +35,12 @@ func (k *Kubectl) RegisterProfile(clusterName string, roleArn string, profile st
 		userId          string
 		contextId       string
 	)
+
+	// Retrieve the credentials of the profile
+	profileCredentials, err := k.AwsConfig.GetProfile(profile)
+	if err != nil {
+		return fmt.Errorf("could not retrieve credentials for profile " + profile)
+	}
 
 	// Retrieve cluster information and write certificate
 	if cluster, err = k.GetEksCluster(clusterName); err != nil {
@@ -126,7 +126,7 @@ func (k *Kubectl) RegisterCluster(cluster eks.Cluster, certificatePath string) (
 	return *cluster.Arn, nil
 }
 
-func (k *Kubectl) RegisterUser(cluster eks.Cluster, profile *config.Profile, roleArn string) (string, error) {
+func (k *Kubectl) RegisterUser(cluster eks.Cluster, profile config.ConfigEntry, roleArn string) (string, error) {
 	credentialsArgs := []string{
 		"--region",
 		profile.Region,
@@ -146,7 +146,7 @@ func (k *Kubectl) RegisterUser(cluster eks.Cluster, profile *config.Profile, rol
 
 	commandArgs := []string{
 		"config", "set-credentials", *cluster.Arn + "_" + roleArn,
-		"--exec-api-version", "client.authentication.k8s.io/v1alpha1",
+		"--exec-api-version", "sso.authentication.k8s.io/v1alpha1",
 		"--exec-command", "aws",
 	}
 

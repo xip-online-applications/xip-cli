@@ -2,133 +2,192 @@ package config
 
 import (
 	"fmt"
-	"xip/aws/functions/config/app"
-	"xip/utils/config_file/ini"
+	"os"
+	"os/user"
+	"path"
+
+	"gopkg.in/ini.v1"
 )
 
 type Config struct {
-	File    *ini.ConfigFileIni
-	Profile *string
+	FileName string
+
+	SsoEntries   map[string]ConfigEntrySso
+	AliasEntries map[string]ConfigEntryAlias
 }
 
-type Profile struct {
-	Name   string
-	Region string
-	Output string
+type ConfigEntry struct {
+	Name string `ini:"-"`
+
+	Region string `ini:"region"`
+	Output string `ini:"output"`
 }
 
-type SsoProfile struct {
-	Common Profile
+type ConfigEntrySso struct {
+	Name string `ini:"-"`
 
-	StartUrl  string
-	AccountId string
-	Role      string
-	SsoRegion string
+	Region    string `ini:"region"`
+	Output    string `ini:"output"`
+	StartUrl  string `ini:"sso_start_url"`
+	AccountId string `ini:"sso_account_id"`
+	Role      string `ini:"sso_role_name"`
+	SsoRegion string `ini:"sso_region"`
 }
 
-type AliasProfile struct {
-	Common Profile
+type ConfigEntryAlias struct {
+	Name string `ini:"-"`
 
-	SourceProfile string
-	RoleArn       string
+	Region        string `ini:"region"`
+	Output        string `ini:"output"`
+	SourceProfile string `ini:"source_profile"`
+	RoleArn       string `ini:"role_arn"`
 }
 
-func New(appConfig app.App) Config {
-	var config *ini.ConfigFileIni
-	path := appConfig.Get().AwsConfigPath
-
-	if path != nil {
-		config, _ = ini.New(*path)
-	}
+func NewConfig() Config {
+	usr, _ := user.Current()
 
 	return Config{
-		File:    config,
-		Profile: appConfig.Get().DefaultProfile,
+		FileName: usr.HomeDir + "/.aws/config",
+
+		SsoEntries:   map[string]ConfigEntrySso{},
+		AliasEntries: map[string]ConfigEntryAlias{},
 	}
 }
 
-func (config *Config) GetProfile(name string) *Profile {
-	_ = config.File.Read()
-
-	profileName := "profile " + name
-	if !config.File.IsSet(profileName + ".region") {
-		return nil
+func LoadConfig() (Config, error) {
+	configFile := NewConfig()
+	if err := configFile.Load(); err != nil {
+		return Config{}, fmt.Errorf("culd not load the config file: %s", err.Error())
 	}
 
-	return &Profile{
-		Name:   name,
-		Region: config.File.GetString(profileName + ".region"),
-		Output: config.File.GetString(profileName + ".output"),
-	}
+	return configFile, nil
 }
 
-func (config *Config) SetSsoProfile(input SsoProfile) {
-	profileName := "profile " + input.Common.Name
-
-	_ = config.File.Read()
-	config.File.Set(profileName+".sso_start_url", &input.StartUrl)
-	config.File.Set(profileName+".sso_region", &input.SsoRegion)
-	config.File.Set(profileName+".sso_account_id", &input.AccountId)
-	config.File.Set(profileName+".sso_role_name", &input.Role)
-	config.File.Set(profileName+".region", &input.Common.Region)
-	config.File.Set(profileName+".output", &input.Common.Output)
-	_ = config.File.Write()
-}
-
-func (config *Config) GetSsoProfile(name string) (SsoProfile, error) {
-	common := config.GetProfile(name)
-	if common == nil {
-		return SsoProfile{}, fmt.Errorf("profile " + name + " not found")
-	}
-
-	profileName := "profile " + name
-	if !config.File.IsSet(profileName + ".sso_region") {
-		return SsoProfile{}, fmt.Errorf("profile " + name + " not found")
-	}
-
-	return SsoProfile{
-		Common:    *common,
-		StartUrl:  config.File.GetString(profileName + ".sso_start_url"),
-		SsoRegion: config.File.GetString(profileName + ".sso_region"),
-		AccountId: config.File.GetString(profileName + ".sso_account_id"),
-		Role:      config.File.GetString(profileName + ".sso_role_name"),
-	}, nil
-}
-
-func (config *Config) SetAliasProfile(input AliasProfile) {
-	profileName := "profile " + input.Common.Name
-
-	_ = config.File.Read()
-	config.File.Set(profileName+".source_profile", &input.SourceProfile)
-	config.File.Set(profileName+".role_arn", &input.RoleArn)
-	config.File.Set(profileName+".region", &input.Common.Region)
-	config.File.Set(profileName+".output", &input.Common.Output)
-	_ = config.File.Write()
-}
-
-func (config *Config) GetAliasProfile(name string) *AliasProfile {
-	common := config.GetProfile(name)
-	if common == nil {
-		return nil
-	}
-
-	profileName := "profile " + name
-	if !config.File.IsSet(profileName + ".source_profile") {
-		return nil
-	}
-
-	return &AliasProfile{
-		Common:        *common,
-		SourceProfile: config.File.GetString(profileName + ".source_profile"),
-		RoleArn:       config.File.GetString(profileName + ".role_arn"),
-	}
-}
-
-func (config *Config) Valid() bool {
-	values, err := config.GetSsoProfile(*config.Profile)
+func (c *Config) Load() error {
+	file, err := ini.Load(c.FileName)
 	if err != nil {
-		return false
+		file = ini.Empty()
 	}
 
-	return len(values.Common.Region) > 0 && len(values.Role) > 0
+	for _, sectionName := range file.SectionStrings() {
+		if sectionName == "DEFAULT" {
+			continue
+		}
+
+		section := file.Section(sectionName)
+		profileName := sectionName[8:]
+
+		if section.HasKey("sso_start_url") {
+			configEntry := ConfigEntrySso{}
+			if err := section.MapTo(&configEntry); err != nil {
+				return fmt.Errorf("could not parse sso config entry %s", sectionName)
+			}
+
+			configEntry.Name = profileName
+			c.SsoEntries[configEntry.Name] = configEntry
+		} else {
+			configEntry := ConfigEntryAlias{}
+			if err := section.MapTo(&configEntry); err != nil {
+				return fmt.Errorf("could not parse alias config entry %s", sectionName)
+			}
+
+			configEntry.Name = profileName
+			c.AliasEntries[configEntry.Name] = configEntry
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) Save() error {
+	file := ini.Empty()
+
+	for _, configEntry := range c.SsoEntries {
+		section, _ := file.NewSection("profile " + configEntry.Name)
+		if err := section.ReflectFrom(&configEntry); err != nil {
+			panic(err)
+		}
+	}
+
+	for _, configEntry := range c.AliasEntries {
+		section, _ := file.NewSection("profile " + configEntry.Name)
+		if err := section.ReflectFrom(&configEntry); err != nil {
+			panic(err)
+		}
+	}
+
+	if _, err := os.Stat(c.FileName); err != nil {
+		_ = os.MkdirAll(path.Dir(c.FileName), 0777)
+	}
+
+	err := file.SaveTo(c.FileName)
+	if err != nil {
+		return fmt.Errorf("could not save the config file to %s: %s", c.FileName, err.Error())
+	}
+
+	return nil
+}
+
+func (c *Config) GetProfile(Profile string) (ConfigEntry, error) {
+	if val, ok := c.AliasEntries[Profile]; ok {
+		return ConfigEntry{
+			Name:   val.Name,
+			Region: val.Region,
+			Output: val.Output,
+		}, nil
+	}
+
+	if val, ok := c.SsoEntries[Profile]; ok {
+		return ConfigEntry{
+			Name:   val.Name,
+			Region: val.Region,
+			Output: val.Output,
+		}, nil
+	}
+
+	return ConfigEntry{}, fmt.Errorf("config entry not found for profile %s", Profile)
+}
+
+func (c *Config) GetAliasProfile(Profile string) (ConfigEntryAlias, error) {
+	if val, ok := c.AliasEntries[Profile]; ok {
+		return val, nil
+	}
+
+	return ConfigEntryAlias{}, fmt.Errorf("alias config entry not found for profile %s", Profile)
+}
+
+func (c *Config) GetSsoProfile(Profile string) (ConfigEntrySso, error) {
+	if val, ok := c.SsoEntries[Profile]; ok {
+		return val, nil
+	}
+
+	return ConfigEntrySso{}, fmt.Errorf("sso config entry not found for profile %s", Profile)
+}
+
+func (c *Config) SetSsoProfile(Profile string, Region string, Output string, StartUrl string, AccountId string, Role string, SsoRegion string) error {
+	ssoEntry := ConfigEntrySso{
+		Name:      Profile,
+		Region:    Region,
+		Output:    Output,
+		StartUrl:  StartUrl,
+		AccountId: AccountId,
+		Role:      Role,
+		SsoRegion: SsoRegion,
+	}
+
+	c.SsoEntries[ssoEntry.Name] = ssoEntry
+	return c.Save()
+}
+
+func (c *Config) SetAliasProfile(Profile string, Region string, Output string, SourceProfile string, RoleArn string) error {
+	aliasEntry := ConfigEntryAlias{
+		Name:          Profile,
+		Region:        Region,
+		Output:        Output,
+		SourceProfile: SourceProfile,
+		RoleArn:       RoleArn,
+	}
+
+	c.AliasEntries[aliasEntry.Name] = aliasEntry
+	return c.Save()
 }

@@ -2,13 +2,17 @@ package sso
 
 import (
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/session"
-	ssos "github.com/aws/aws-sdk-go/service/sso"
-	"github.com/aws/aws-sdk-go/service/ssooidc"
 	"time"
+
+	"github.com/aws/aws-sdk-go/aws/session"
+	awssso "github.com/aws/aws-sdk-go/service/sso"
+	"github.com/aws/aws-sdk-go/service/ssooidc"
+	"github.com/aws/aws-sdk-go/service/sts"
+
 	"xip/aws/functions/config/app"
+	"xip/aws/functions/config/cli"
 	"xip/aws/functions/config/config"
-	"xip/aws/functions/config/credentials"
+	"xip/aws/functions/config/sso"
 	"xip/utils/helpers"
 )
 
@@ -22,141 +26,89 @@ type ConfigureValues struct {
 
 type Sso struct {
 	// AWS information
-	_AwsSession    *session.Session
-	_SsoClient     *ssos.SSO
-	_SsoOidcClient *ssooidc.SSOOIDC
+	awsSession    *session.Session
+	ssoClient     *awssso.SSO
+	ssoOidcClient *ssooidc.SSOOIDC
+	stsClient     *sts.STS
 
 	// Configuration clients
-	AppConfig         *app.App
-	ConfigConfig      *config.Config
-	CredentialsConfig *credentials.Credentials
-
-	// Persisted information
-	ClientId              *string
-	ClientSecret          *string
-	ClientExpiration      *time.Time
-	AccessToken           *string
-	AccessTokenExpiration *time.Time
+	appConfig *app.App
 
 	// On-the-fly information
-	DeviceCode           *string
-	DeviceCodeExpiration *int32
-	UserCode             *string
+	deviceCodeExpiration *int32
 }
 
 // https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html
 // https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html
 // https://docs.aws.amazon.com/singlesignon/latest/PortalAPIReference/API_GetRoleCredentials.html
 
-func New(awsSession session.Session, appConfig app.App, awsConfig config.Config) Sso {
-	// App config values
-	appConfigValues := appConfig.Get()
-
-	// Creds instance
-	creds := credentials.New(*appConfigValues.AwsConfigPath, *appConfigValues.DefaultProfile)
-
-	sso := Sso{
-		_AwsSession: &awsSession,
-
-		AppConfig:         &appConfig,
-		ConfigConfig:      &awsConfig,
-		CredentialsConfig: &creds,
+func New(awsSession session.Session, appConfig app.App) Sso {
+	s := Sso{
+		awsSession: &awsSession,
+		appConfig:  &appConfig,
 	}
-	sso._Setup()
-	sso._LoadConfig()
 
-	return sso
+	s.load()
+
+	return s
 }
 
-func (sso *Sso) _Setup() {
-	// Create a SSOOIDC app with additional configuration
-	sso._SsoClient = ssos.New(sso._AwsSession)
-	sso._SsoOidcClient = ssooidc.New(sso._AwsSession)
-
-}
-
-func (sso *Sso) Login(creds credentials.Values) {
-	sso._AwsSession.Config.Region = &creds.Region
-	sso._Setup()
-
+func (s *Sso) Login(Profile string) {
 	// Register the device if needed
-	sso._RegisterClient()
+	s.registerClient()
 
-	if !sso._AccessTokenValid() {
+	if s.isAliasProfile(Profile) {
+		// Just assume the role
+		s.assumeRole(Profile)
+	} else {
 		// Authorize the device
-		sso._AuthorizeDevice()
-	}
+		s.authorizeDevice(Profile)
 
-	// Retrieve the role credentials by assuming it
-	sso._RetrieveRoleCredentials()
+		// Retrieve the role credentials by assuming it
+		s.retrieveRoleCredentials(Profile)
+	}
 }
 
-func (sso *Sso) Configure(values ConfigureValues) {
-	// Update defalt profile
-	appValues := sso.AppConfig.Get()
+func (s *Sso) Configure(values ConfigureValues) {
+	// Update default profile
+	appValues := s.appConfig.Get()
 	appValues.DefaultProfile = values.Profile
-	sso.AppConfig.Set(appValues)
+	s.appConfig.Set(appValues)
 
-	// Save the new configuration
-	ConfigConfig := config.New(*sso.AppConfig)
-	ConfigConfig.SetSsoProfile(config.SsoProfile{
-		Common: config.Profile{
-			Name:   *values.Profile,
-			Region: *values.Region,
-			Output: "json",
-		},
-		StartUrl:  *values.StartUrl,
-		AccountId: *values.AccountId,
-		Role:      *values.RoleName,
-		SsoRegion: *values.Region,
-	})
-	sso.ConfigConfig = &ConfigConfig
-
-	// Set region
-	sso._AwsSession.Config.Region = values.Region
-	sso._Setup()
-
-	// Credentials config
-	creds := credentials.Values{
-		Region:            *values.Region,
-		AccessKeyId:       "",
-		SecretAccessKey:   "",
-		SessionToken:      "",
-		SessionExpiration: time.Time{},
+	// Get config file
+	awsConfig, _ := config.LoadConfig()
+	err := awsConfig.SetSsoProfile(*values.Profile, *values.Region, "json", *values.StartUrl, *values.AccountId, *values.RoleName, *values.Region)
+	if err != nil {
+		panic(err)
 	}
+
+	// Reload the configuration
+	s.load()
 
 	// Register the device if needed
-	sso.Login(creds)
+	s.Login(*values.Profile)
 }
 
-func (sso *Sso) _LoadConfig() {
-	if !sso.ConfigConfig.Valid() {
-		return
+func (s *Sso) load() {
+	// App configuration
+	clientValues := s.appConfig.Get()
+
+	// Try to load default profile
+	if profile := clientValues.DefaultProfile; profile != nil {
+		awsConfig, _ := config.LoadConfig()
+		awsProfile, _ := awsConfig.GetProfile(*profile)
+		s.awsSession.Config.Region = &awsProfile.Region
 	}
 
-	clientValues := sso.AppConfig.Get()
-
-	sso.ClientId = clientValues.ClientId
-	sso.ClientSecret = clientValues.ClientSecret
-	sso.ClientExpiration = clientValues.ClientExpiration
-	sso.AccessToken = clientValues.AccessToken
-	sso.AccessTokenExpiration = clientValues.AccessTokenExpiration
+	// Create a SSOOIDC app with additional configuration
+	s.ssoClient = awssso.New(s.awsSession, s.awsSession.Config)
+	s.ssoOidcClient = ssooidc.New(s.awsSession, s.awsSession.Config)
+	s.stsClient = sts.New(s.awsSession, s.awsSession.Config)
 }
 
-func (sso *Sso) _SaveConfig() {
-	values := sso.AppConfig.Get()
-
-	values.ClientId = sso.ClientId
-	values.ClientSecret = sso.ClientSecret
-	values.ClientExpiration = sso.ClientExpiration
-	values.AccessToken = sso.AccessToken
-	values.AccessTokenExpiration = sso.AccessTokenExpiration
-
-	sso.AppConfig.Set(values)
-}
-
-func (sso *Sso) _RegisterClient() {
-	if sso.AppConfig.Valid() {
+func (s *Sso) registerClient() {
+	awsConfig, _ := sso.LoadClient()
+	if awsConfig.Valid() {
 		return
 	}
 
@@ -169,37 +121,41 @@ func (sso *Sso) _RegisterClient() {
 		Scopes:     nil,
 	}
 
-	output, err := sso._SsoOidcClient.RegisterClient(clientInput)
+	output, err := s.ssoOidcClient.RegisterClient(clientInput)
 	if err != nil {
 		panic(err)
 	}
 
 	expiration := helpers.IntToTime(int(*output.ClientSecretExpiresAt))
 
-	sso.ClientId = output.ClientId
-	sso.ClientSecret = output.ClientSecret
-	sso.ClientExpiration = &expiration
-
-	sso._SaveConfig()
+	awsConfig = sso.NewClient(*output.ClientId, *output.ClientSecret, expiration)
+	awsConfig.Save()
 }
 
-func (sso *Sso) _AuthorizeDevice() {
-	if sso.DeviceCodeExpiration != nil && *sso.DeviceCodeExpiration > int32(time.Now().Unix()) {
+func (s *Sso) authorizeDevice(Profile string) {
+	if s.hasValidSsoProfileWithAccessToken(Profile) {
 		return
 	}
 
-	conf, err := sso.ConfigConfig.GetSsoProfile(*sso.ConfigConfig.Profile)
+	if s.deviceCodeExpiration != nil && *s.deviceCodeExpiration > int32(time.Now().Unix()) {
+		return
+	}
+
+	awsConfig, _ := config.LoadConfig()
+	awsProfile, err := awsConfig.GetSsoProfile(Profile)
 	if err != nil {
 		return
 	}
 
+	awsClientConfig, _ := sso.LoadClient()
+
 	clientInput := &ssooidc.StartDeviceAuthorizationInput{
-		ClientId:     sso.ClientId,
-		ClientSecret: sso.ClientSecret,
-		StartUrl:     &conf.StartUrl,
+		ClientId:     &awsClientConfig.ClientId,
+		ClientSecret: &awsClientConfig.ClientSecret,
+		StartUrl:     &awsProfile.StartUrl,
 	}
 
-	output, err := sso._SsoOidcClient.StartDeviceAuthorization(clientInput)
+	output, err := s.ssoOidcClient.StartDeviceAuthorization(clientInput)
 	if err != nil {
 		panic(err)
 	}
@@ -207,80 +163,108 @@ func (sso *Sso) _AuthorizeDevice() {
 	helpers.OpenBrowser(*output.VerificationUriComplete)
 
 	tokenExpiration := int32(time.Now().Unix()) + int32(*output.ExpiresIn)
+	s.deviceCodeExpiration = &tokenExpiration
 
-	sso.UserCode = output.UserCode
-	sso.DeviceCode = output.DeviceCode
-	sso.DeviceCodeExpiration = &tokenExpiration
+	retryCount := int(*output.ExpiresIn) / int(*output.Interval)
+	sleepTimeout, _ := time.ParseDuration(fmt.Sprintf("%ds", *output.Interval))
 
-	sso._CreateToken(int(*output.ExpiresIn)/int(*output.Interval), int(*output.Interval))
+	for i := 0; i < retryCount; i++ {
+		if err := s.createToken(Profile, awsClientConfig.ClientId, awsClientConfig.ClientSecret, *output.DeviceCode, *output.UserCode); err == nil {
+			break
+		}
+
+		time.Sleep(sleepTimeout)
+	}
 }
 
-func (sso *Sso) _CreateToken(retryCount int, interval int) {
-	if sso._AccessTokenValid() {
-		return
-	}
-
+func (s *Sso) createToken(Profile string, ClientId string, ClientSecret string, DeviceCode string, UserCode string) error {
 	grantType := "urn:ietf:params:oauth:grant-type:device_code"
 
 	clientInput := &ssooidc.CreateTokenInput{
-		ClientId:     sso.ClientId,
-		ClientSecret: sso.ClientSecret,
-		DeviceCode:   sso.DeviceCode,
-		Code:         sso.UserCode,
+		ClientId:     &ClientId,
+		ClientSecret: &ClientSecret,
+		DeviceCode:   &DeviceCode,
+		Code:         &UserCode,
 		GrantType:    &grantType,
 	}
 
-	sleepTimeout, _ := time.ParseDuration(fmt.Sprintf("%ds", interval))
-
-	for i := 0; i < retryCount; i++ {
-		output, err := sso._SsoOidcClient.CreateToken(clientInput)
-		if err != nil {
-			time.Sleep(sleepTimeout)
-
-			continue
-		}
-
-		expiration := helpers.IntToTime(int(time.Now().Unix() + *output.ExpiresIn))
-
-		sso.AccessToken = output.AccessToken
-		sso.AccessTokenExpiration = &expiration
-
-		sso._SaveConfig()
-
-		return
-	}
-
-	panic("Failed to create token")
-}
-
-func (sso *Sso) _AccessTokenValid() bool {
-	if sso.AccessToken == nil {
-		return false
-	}
-
-	return sso.AccessTokenExpiration != nil && time.Now().Before(*sso.AccessTokenExpiration)
-}
-
-func (sso *Sso) _RetrieveRoleCredentials() {
-	if sso.CredentialsConfig.Valid() {
-		return
-	}
-
-	conf, err := sso.ConfigConfig.GetSsoProfile(*sso.ConfigConfig.Profile)
+	output, err := s.ssoOidcClient.CreateToken(clientInput)
 	if err != nil {
-		return
+		return err
 	}
 
-	input := ssos.GetRoleCredentialsInput{
-		AccessToken: sso.AccessToken,
-		AccountId:   &conf.AccountId,
-		RoleName:    &conf.Role,
+	expiration := helpers.IntToTime(int(time.Now().Unix() + *output.ExpiresIn))
+
+	awsConfig, _ := config.LoadConfig()
+	awsSsoProfile, _ := awsConfig.GetSsoProfile(Profile)
+
+	awsCredentials := sso.NewProfile(*output.AccessToken, expiration, awsSsoProfile.Region, awsSsoProfile.StartUrl)
+	awsCredentials.Save()
+
+	return nil
+}
+
+func (s *Sso) retrieveRoleCredentials(Profile string) {
+	awsConfig, _ := config.LoadConfig()
+	awsSsoProfile, _ := awsConfig.GetSsoProfile(Profile)
+
+	ssoProfile, _ := sso.LoadProfile(awsSsoProfile.StartUrl)
+
+	input := awssso.GetRoleCredentialsInput{
+		AccessToken: &ssoProfile.AccessToken,
+		AccountId:   &awsSsoProfile.AccountId,
+		RoleName:    &awsSsoProfile.Role,
 	}
 
-	output, err := sso._SsoClient.GetRoleCredentials(&input)
+	output, err := s.ssoClient.GetRoleCredentials(&input)
 	if err != nil {
 		panic(err)
 	}
 
-	sso.CredentialsConfig.FromRoleCredentials(conf.Common.Region, *output.RoleCredentials)
+	awsCredentials, _ := config.LoadCredentials()
+	awsCredentials.SetFromRoleCredentials(Profile, awsSsoProfile.Region, *output.RoleCredentials)
+	awsCredential, _ := awsCredentials.Get(Profile)
+
+	fileName := cli.CreateSsoProfileFileName(awsSsoProfile.AccountId, awsSsoProfile.Role, awsSsoProfile.StartUrl)
+	ssoClientProfile := cli.NewSsoProfile(fileName, awsCredential.AwsAccessKeyId, awsCredential.AwsSecretAccessKey, awsCredential.AwsSessionToken, helpers.StringToTime(awsCredential.AwsSessionExpiration))
+	ssoClientProfile.Save()
+}
+
+func (s *Sso) assumeRole(Profile string) {
+	awsConfig, _ := config.LoadConfig()
+	awsAliasProfile, _ := awsConfig.GetAliasProfile(Profile)
+
+	sessionName := fmt.Sprintf("xip-session-%d", time.Now().Unix())
+	duration := int64(3600)
+
+	input := sts.AssumeRoleInput{
+		RoleArn:         &awsAliasProfile.RoleArn,
+		RoleSessionName: &sessionName,
+		DurationSeconds: &duration,
+	}
+
+	output, err := s.stsClient.AssumeRole(&input)
+	if err != nil {
+		panic(err)
+	}
+
+	fileName := cli.CreateRoleProfileFileName(awsAliasProfile.RoleArn, duration)
+	ssoClientProfile := cli.NewRoleProfile(fileName, *output)
+	ssoClientProfile.Save()
+}
+
+func (s *Sso) isAliasProfile(Profile string) bool {
+	awsConfig, _ := config.LoadConfig()
+	_, err := awsConfig.GetAliasProfile(Profile)
+
+	return err == nil
+}
+
+func (s *Sso) hasValidSsoProfileWithAccessToken(Profile string) bool {
+	awsConfig, _ := config.LoadConfig()
+	awsSsoProfile, _ := awsConfig.GetSsoProfile(Profile)
+
+	_, err := sso.LoadProfile(awsSsoProfile.StartUrl)
+
+	return err == nil
 }

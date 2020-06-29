@@ -2,10 +2,11 @@ package functions
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"os"
-	"regexp"
+
 	"xip/aws/functions/config/app"
 	"xip/aws/functions/config/config"
 	"xip/aws/functions/kubectl"
@@ -24,10 +25,6 @@ type Functions struct {
 func New() *Functions {
 	appConfig := app.New()
 
-	if !appConfig.Initialized() {
-		return nil
-	}
-
 	var (
 		prof    = appConfig.Get().DefaultProfile
 		profile = ""
@@ -42,8 +39,8 @@ func New() *Functions {
 		Profile:           profile,
 	}))
 
-	awsConfig := config.New(appConfig)
-	Sso := sso.New(*sess, appConfig, awsConfig)
+	awsConfig, _ := config.LoadConfig()
+	Sso := sso.New(*sess, appConfig)
 	Kubectl := kubectl.New(sess, &awsConfig)
 
 	return &Functions{
@@ -81,27 +78,27 @@ func (f *Functions) GetDefaultProfile() (string, error) {
 }
 
 func (f *Functions) AddProfile(profile string, sourceProfile string, role string) {
-	source, _ := f.AwsConfig.GetSsoProfile(sourceProfile)
+	awsConfig, _ := config.LoadConfig()
+	source, _ := awsConfig.GetProfile(sourceProfile)
 
-	f.AwsConfig.SetAliasProfile(config.AliasProfile{
-		Common: config.Profile{
-			Name:   profile,
-			Region: source.Common.Region,
-			Output: source.Common.Output,
-		},
-		SourceProfile: sourceProfile,
-		RoleArn:       role,
-	})
+	err := awsConfig.SetAliasProfile(profile, source.Region, source.Output, sourceProfile, role)
+	if err != nil {
+		panic(err)
+	}
+
+	f.Login("")
+	f.SetDefault(profile)
 }
 
 func (f *Functions) Login(profile string) {
-	creds := f.SsoClient.CredentialsConfig.ForProfile(profile)
-	if creds == nil {
-		panic("no credentials found for given profile")
+	if len(profile) > 1 {
+		f.SsoClient.Login(profile)
+		f.SetDefault(profile)
+	} else {
+		for _, value := range f.GetAllProfileNames() {
+			f.SsoClient.Login(value)
+		}
 	}
-
-	f.SetDefault(profile)
-	f.SsoClient.Login(*creds)
 }
 
 func (f *Functions) Identity() string {
@@ -117,34 +114,19 @@ func (f *Functions) Identity() string {
 	return *identity.UserId
 }
 
-func (f *Functions) GetAllSsoProfileNames() []string {
-	confFile := f.SsoClient.ConfigConfig.File
+func (f *Functions) GetAllProfileNames() []string {
+	configFile, _ := config.LoadConfig()
+	var profiles []string
 
-	allKeys := confFile.Keys()
-	profiles := make(map[string]string)
-
-	re := regexp.MustCompile("^profile (\\w+)\\.sso_start_url$")
-
-	for _, value := range allKeys {
-		val := re.FindStringSubmatch(value)
-
-		if len(val) < 2 {
-			continue
-		}
-
-		if _, ok := profiles[val[1]]; ok {
-			continue
-		}
-
-		profiles[val[1]] = val[1]
+	for _, value := range configFile.SsoEntries {
+		profiles = append(profiles, value.Name)
 	}
 
-	var keys []string
-	for k := range profiles {
-		keys = append(keys, k)
+	for _, value := range configFile.AliasEntries {
+		profiles = append(profiles, value.Name)
 	}
 
-	return keys
+	return profiles
 }
 
 func (f *Functions) RegisterKubectlProfile(clusterName string, roleArn string, profile string, namespace string, alias string) error {
