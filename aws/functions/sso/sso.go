@@ -63,7 +63,8 @@ func (s *Sso) Login(Profile string) {
 		}
 
 		if s.retryCount > 3 {
-			_, _ = fmt.Fprintf(os.Stderr, "Failed too many times\n")
+			err := recover()
+			_, _ = fmt.Fprintf(os.Stderr, "Failed too many times: %s\n", err)
 			os.Exit(1)
 		}
 

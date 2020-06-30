@@ -2,6 +2,7 @@ package aws
 
 import (
 	"github.com/spf13/cobra"
+
 	"xip/aws/commands"
 	"xip/aws/functions"
 )
@@ -11,12 +12,7 @@ func Aws() *cobra.Command {
 		Use: "aws",
 	}
 
-	functs := functions.New()
-	if functs == nil {
-		return cmd
-	}
-
-	cmds := commands.New(*functs)
+	cmds := commands.New(functions.New())
 
 	cmd.AddCommand(cmds.Configure())
 	cmd.AddCommand(cmds.Login())

@@ -17,7 +17,10 @@ func (c *AwsCommands) Login() *cobra.Command {
 
 func (c *AwsCommands) LoginRun(cmd *cobra.Command, args []string) {
 	if len(args) == 1 {
-		c.Functions.Login(args[0])
+		profile := args[0]
+
+		c.Functions.Login(profile)
+		c.Functions.PrintDefaultHelp(profile)
 	} else {
 		c.Functions.Login("")
 	}

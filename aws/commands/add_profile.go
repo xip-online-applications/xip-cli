@@ -29,4 +29,5 @@ func (c *AwsCommands) AddProfileRun(cmd *cobra.Command, args []string) {
 	}
 
 	c.Functions.AddProfile(profile, sourceProfile, role)
+	c.Functions.PrintDefaultHelp(profile)
 }

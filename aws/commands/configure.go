@@ -35,4 +35,5 @@ func (c *AwsCommands) ConfigureRun(cmd *cobra.Command, args []string) {
 		RoleName:  &role,
 	})
 	c.Functions.Login(profile)
+	c.Functions.PrintDefaultHelp(profile)
 }

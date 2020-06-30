@@ -22,34 +22,11 @@ type Functions struct {
 	KubectlClient    *kubectl.Kubectl
 }
 
-func New() *Functions {
-	appConfig := app.New()
+func New() Functions {
+	f := Functions{}
+	f.setup()
 
-	var (
-		prof    = appConfig.Get().DefaultProfile
-		profile = ""
-	)
-
-	if prof != nil {
-		profile = *prof
-	}
-
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-		Profile:           profile,
-	}))
-
-	awsConfig, _ := config.LoadConfig()
-	Sso := sso.New(*sess, appConfig)
-	Kubectl := kubectl.New(sess, &awsConfig)
-
-	return &Functions{
-		AwsSession:       sess,
-		AppConfiguration: &appConfig,
-		AwsConfig:        &awsConfig,
-		SsoClient:        &Sso,
-		KubectlClient:    &Kubectl,
-	}
+	return f
 }
 
 func (f *Functions) Configure(values sso.ConfigureValues) {
@@ -62,9 +39,19 @@ func (f *Functions) SetDefault(profile string) {
 	appValues.DefaultProfile = &profile
 	f.AppConfiguration.Set(appValues)
 
+	// Update AWS session information
 	_ = os.Setenv("AWS_PROFILE", profile)
 	_ = os.Setenv("AWS_DEFAULT_PROFILE", profile)
-	fmt.Println("Please restart your terminal session for the profile reload to happen or run:\n\nexport AWS_DEFAULT_PROFILE=" + profile)
+
+	// Reload the profile stuff
+	f.setup()
+}
+
+func (f *Functions) PrintDefaultHelp(Profile string) {
+	fmt.Println("Please restart your terminal session for the profile reload to happen or run:")
+	fmt.Println("")
+	fmt.Println("export AWS_PROFILE=" + Profile)
+	fmt.Println("export AWS_DEFAULT_PROFILE=" + Profile)
 }
 
 func (f *Functions) GetDefaultProfile() (string, error) {
@@ -86,6 +73,7 @@ func (f *Functions) AddProfile(profile string, sourceProfile string, role string
 		panic(err)
 	}
 
+	f.SetDefault(sourceProfile)
 	f.Login("")
 	f.SetDefault(profile)
 }
@@ -131,4 +119,32 @@ func (f *Functions) GetAllProfileNames() []string {
 
 func (f *Functions) RegisterKubectlProfile(clusterName string, roleArn string, profile string, namespace string, alias string) error {
 	return f.KubectlClient.RegisterProfile(clusterName, roleArn, profile, namespace, alias)
+}
+
+func (f *Functions) setup() {
+	appConfig := app.New()
+
+	var (
+		prof    = appConfig.Get().DefaultProfile
+		profile = ""
+	)
+
+	if prof != nil {
+		profile = *prof
+	}
+
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+		Profile:           profile,
+	}))
+
+	awsConfig, _ := config.LoadConfig()
+	Sso := sso.New(*sess, appConfig)
+	Kubectl := kubectl.New(sess, &awsConfig)
+
+	f.AwsSession = sess
+	f.AppConfiguration = &appConfig
+	f.AwsConfig = &awsConfig
+	f.SsoClient = &Sso
+	f.KubectlClient = &Kubectl
 }
