@@ -141,12 +141,12 @@ func (k *Kubectl) RegisterUser(cluster eks.Cluster, profile config.ConfigEntry, 
 	}
 
 	if len(roleArn) > 0 {
-		credentialsArgs = append(credentialsArgs, "--role", roleArn)
+		credentialsArgs = append(credentialsArgs, "--role-arn", roleArn)
 	}
 
 	commandArgs := []string{
 		"config", "set-credentials", *cluster.Arn + "_" + roleArn,
-		"--exec-api-version", "sso.authentication.k8s.io/v1alpha1",
+		"--exec-api-version", "client.authentication.k8s.io/v1alpha1",
 		"--exec-command", "aws",
 	}
 

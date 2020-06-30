@@ -37,6 +37,13 @@ func (c *AwsCommands) KubectlRun(cmd *cobra.Command, args []string) {
 	namespace, _ := cmd.Flags().GetString("namespace")
 	alias, _ := cmd.Flags().GetString("alias")
 
+	defaultUser, _ := c.Functions.GetDefaultProfile()
+	defer c.Functions.SetDefault(defaultUser)
+
+	if len(profile) > 0 {
+		c.Functions.SetDefault(profile)
+	}
+
 	if err := c.Functions.RegisterKubectlProfile(clusterName, roleArn, profile, namespace, alias); err != nil {
 		panic(err)
 	}

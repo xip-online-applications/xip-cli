@@ -83,7 +83,11 @@ func (f *Functions) Login(profile string) {
 		f.SsoClient.Login(profile)
 		f.SetDefault(profile)
 	} else {
+		currentDefault, _ := f.GetDefaultProfile()
+		defer f.SetDefault(currentDefault)
+
 		for _, value := range f.GetAllProfileNames() {
+			f.SetDefault(value)
 			f.SsoClient.Login(value)
 		}
 	}
