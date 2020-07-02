@@ -3,27 +3,28 @@ package commands
 import (
 	"fmt"
 	"github.com/spf13/cobra"
-	"xip/aws/functions"
 )
 
-func Default() *cobra.Command {
+func (c *AwsCommands) Default() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "default [profile]",
 		Short: "Retrieve the current default profile or set the default by providing the profile.",
 		Args:  cobra.RangeArgs(0, 1),
-		Run:   DefaultRun,
+		Run:   c.DefaultRun,
 	}
 
 	return cmd
 }
 
-func DefaultRun(cmd *cobra.Command, args []string) {
+func (c *AwsCommands) DefaultRun(cmd *cobra.Command, args []string) {
 	if len(args) == 1 {
-		profile := args[0]
-		path, _ := cmd.Flags().GetString("config")
-
-		functions.SetDefault(path, profile)
+		c.Functions.SetDefault(args[0])
 	}
 
-	fmt.Println(functions.GetDefaultProfile())
+	prof, err := c.Functions.GetDefaultProfile()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(prof)
 }

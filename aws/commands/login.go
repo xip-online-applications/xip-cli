@@ -2,32 +2,26 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
-	"xip/aws/functions"
 )
 
-func Login() *cobra.Command {
+func (c *AwsCommands) Login() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login [profile]",
-		Short: "Login to the SSO.",
+		Short: "Login to the SSO. If profile is omitted, the current default will be logged in.",
 		Args:  cobra.RangeArgs(0, 1),
-		Run:   LoginRun,
+		Run:   c.LoginRun,
 	}
 
 	return cmd
 }
 
-func LoginRun(cmd *cobra.Command, args []string) {
-	path, _ := cmd.Flags().GetString("config")
-
+func (c *AwsCommands) LoginRun(cmd *cobra.Command, args []string) {
 	if len(args) == 1 {
-		functions.Login(args[0])
-	} else {
-		for _, value := range functions.GetAllSsoProfileNames(path) {
-			functions.Login(value)
-		}
-	}
+		profile := args[0]
 
-	for _, value := range functions.GetAllProfileNames(path) {
-		functions.Sync(path, value)
+		c.Functions.Login(profile)
+		c.Functions.PrintDefaultHelp(profile)
+	} else {
+		c.Functions.Login("")
 	}
 }

@@ -2,26 +2,25 @@ package aws
 
 import (
 	"github.com/spf13/cobra"
-	"os/user"
-	"xip/aws/commands"
-)
 
-var configFilePath string
+	"xip/aws/commands"
+	"xip/aws/functions"
+)
 
 func Aws() *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "aws",
 	}
 
-	cmd.AddCommand(commands.Configure())
-	cmd.AddCommand(commands.Login())
-	cmd.AddCommand(commands.AddProfile())
-	cmd.AddCommand(commands.Default())
-	cmd.AddCommand(commands.Sync())
-	cmd.AddCommand(commands.Identity())
+	cmds := commands.New(functions.New())
 
-	usr, _ := user.Current()
-	cmd.PersistentFlags().StringVarP(&configFilePath, "config", "c", usr.HomeDir+"/.aws/config", "AWS config file path")
+	cmd.AddCommand(cmds.Configure())
+	cmd.AddCommand(cmds.Login())
+	cmd.AddCommand(cmds.AddProfile())
+	cmd.AddCommand(cmds.Default())
+	cmd.AddCommand(cmds.Kubectl())
+	cmd.AddCommand(cmds.Identity())
+	cmd.AddCommand(cmds.EksToken())
 
 	return cmd
 }
