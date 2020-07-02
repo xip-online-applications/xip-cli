@@ -82,6 +82,7 @@ func (f *Functions) AddProfile(profile string, sourceProfile string, role string
 
 func (f *Functions) Login(profile string) {
 	if len(profile) > 1 {
+		f.SetDefault(profile)
 		f.SsoClient.Login(profile)
 		f.SetDefault(profile)
 	} else {
@@ -136,7 +137,7 @@ func (f *Functions) GetEksToken(profile string, clusterName string, roleArn stri
 	currentDefaultProfile, _ := f.GetDefaultProfile()
 	defer f.SetDefault(currentDefaultProfile)
 
-	f.SetDefault(profile)
+	f.Login(profile)
 	return f.EksClient.GetToken(prof.Region, clusterName, roleArn)
 }
 
