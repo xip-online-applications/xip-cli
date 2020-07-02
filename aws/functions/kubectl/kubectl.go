@@ -128,10 +128,8 @@ func (k *Kubectl) RegisterCluster(cluster eks.Cluster, certificatePath string) (
 
 func (k *Kubectl) RegisterUser(cluster eks.Cluster, profile config.ConfigEntry, roleArn string) (string, error) {
 	credentialsArgs := []string{
-		"--region",
-		profile.Region,
-		"eks",
-		"get-token",
+		"aws",
+		"eks-token",
 		"--cluster-name",
 		*cluster.Name,
 	}
@@ -147,7 +145,7 @@ func (k *Kubectl) RegisterUser(cluster eks.Cluster, profile config.ConfigEntry, 
 	commandArgs := []string{
 		"config", "set-credentials", *cluster.Arn + "_" + roleArn,
 		"--exec-api-version", "client.authentication.k8s.io/v1alpha1",
-		"--exec-command", "aws",
+		"--exec-command", "x-ip",
 	}
 
 	for _, element := range credentialsArgs {
