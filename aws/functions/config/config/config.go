@@ -89,7 +89,7 @@ func (c *Config) Load() error {
 
 			configEntry.Name = profileName
 			c.SsoEntries[configEntry.Name] = configEntry
-		} else {
+		} else if section.HasKey("source_profile") {
 			configEntry := ConfigEntryAlias{}
 			if err := section.MapTo(&configEntry); err != nil {
 				return fmt.Errorf("could not parse alias config entry %s", sectionName)
@@ -104,17 +104,30 @@ func (c *Config) Load() error {
 }
 
 func (c *Config) Save() error {
-	file := ini.Empty()
+	file, err := ini.Load(c.FileName)
+	if err != nil {
+		return fmt.Errorf("could not load the config file %s: %s", c.FileName, err.Error())
+	}
 
 	for _, configEntry := range c.SsoEntries {
-		section, _ := file.NewSection(c.getSectionName(configEntry.Name))
+		name := c.getSectionName(configEntry.Name)
+		section, err := file.GetSection(name)
+		if err != nil {
+			section, _ = file.NewSection(name)
+		}
+
 		if err := section.ReflectFrom(&configEntry); err != nil {
 			panic(err)
 		}
 	}
 
 	for _, configEntry := range c.AliasEntries {
-		section, _ := file.NewSection(c.getSectionName(configEntry.Name))
+		name := c.getSectionName(configEntry.Name)
+		section, err := file.GetSection(name)
+		if err != nil {
+			section, _ = file.NewSection(name)
+		}
+
 		if err := section.ReflectFrom(&configEntry); err != nil {
 			panic(err)
 		}
@@ -124,7 +137,7 @@ func (c *Config) Save() error {
 		_ = os.MkdirAll(path.Dir(c.FileName), 0777)
 	}
 
-	err := file.SaveTo(c.FileName)
+	err = file.SaveTo(c.FileName)
 	if err != nil {
 		return fmt.Errorf("could not save the config file to %s: %s", c.FileName, err.Error())
 	}

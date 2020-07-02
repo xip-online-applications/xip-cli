@@ -73,10 +73,17 @@ func (c *Credentials) Load() error {
 }
 
 func (c *Credentials) Save() error {
-	file := ini.Empty()
+	file, err := ini.Load(c.FileName)
+	if err != nil {
+		return fmt.Errorf("could not load the credentials file %s: %s", c.FileName, err.Error())
+	}
 
 	for _, credentialEntry := range c.Entries {
-		section, _ := file.NewSection(credentialEntry.Name)
+		section, err := file.GetSection(credentialEntry.Name)
+		if err != nil {
+			section, _ = file.NewSection(credentialEntry.Name)
+		}
+
 		_ = section.ReflectFrom(&credentialEntry)
 	}
 
@@ -84,7 +91,7 @@ func (c *Credentials) Save() error {
 		_ = os.MkdirAll(path.Dir(c.FileName), 0777)
 	}
 
-	err := file.SaveTo(c.FileName)
+	err = file.SaveTo(c.FileName)
 	if err != nil {
 		return fmt.Errorf("could not save the credentials ini file to %s: %s", c.FileName, err.Error())
 	}
