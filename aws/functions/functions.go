@@ -84,7 +84,6 @@ func (f *Functions) Login(profile string) {
 	if len(profile) > 1 {
 		f.SetDefault(profile)
 		f.SsoClient.Login(profile)
-		f.SetDefault(profile)
 	} else {
 		currentDefault, _ := f.GetDefaultProfile()
 		defer f.SetDefault(currentDefault)

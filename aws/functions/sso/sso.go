@@ -5,6 +5,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/session"
 	awssso "github.com/aws/aws-sdk-go/service/sso"
 	"github.com/aws/aws-sdk-go/service/ssooidc"
@@ -40,6 +42,16 @@ type Sso struct {
 	retryCount           int8
 }
 
+type LoginOptions struct {
+	Session *session.Session
+	Sso     *awssso.SSO
+	SsoOidc *ssooidc.SSOOIDC
+	Sts     *sts.STS
+	Config  *config.Config
+
+	RetryCount int
+}
+
 // https://docs.aws.amazon.com/cognito/latest/developerguide/token-endpoint.html
 // https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html
 // https://docs.aws.amazon.com/singlesignon/latest/PortalAPIReference/API_GetRoleCredentials.html
@@ -55,35 +67,55 @@ func New(awsSession session.Session, appConfig app.App) Sso {
 	return s
 }
 
-func (s *Sso) Login(Profile string) {
+func (s *Sso) Login(Profile string, AllOptions ...*LoginOptions) {
+	options := &LoginOptions{}
+
+	// Config
+	awsConfig, _ := config.LoadConfig()
+	profile, _ := awsConfig.GetProfile(Profile)
+
+	if len(AllOptions) > 1 {
+		panic("Only one options entry possible")
+	} else if len(AllOptions) == 1 {
+		options = AllOptions[0]
+	} else {
+		// Setup login options
+		options = &LoginOptions{}
+		options.Config = &awsConfig
+		options.Session = s.awsSession.Copy(aws.NewConfig().WithRegion(profile.Region).WithSTSRegionalEndpoint(endpoints.RegionalSTSEndpoint))
+		options.Sso = awssso.New(options.Session, options.Session.Config)
+		options.SsoOidc = ssooidc.New(options.Session, options.Session.Config)
+		options.Sts = sts.New(options.Session, options.Session.Config)
+	}
+
 	// Retry mechanism
 	defer func() {
 		if err := recover(); err == nil {
 			return
 		}
 
-		if s.retryCount > 3 {
+		if options.RetryCount > 3 {
 			err := recover()
 			_, _ = fmt.Fprintf(os.Stderr, "Failed too many times: %s\n", err)
 			os.Exit(1)
 		}
 
-		s.retryCount++
-		s.Login(Profile)
+		options.RetryCount++
+		s.Login(Profile, options)
 	}()
 
 	// Register the device if needed
-	s.registerClient()
+	s.registerClient(options)
 
-	if s.isAliasProfile(Profile) {
+	if s.isAliasProfile(options, Profile) {
 		// Just assume the role
-		s.assumeRole(Profile)
+		s.assumeRole(options, Profile)
 	} else {
 		// Authorize the device
-		s.authorizeDevice(Profile)
+		s.authorizeDevice(options, Profile)
 
 		// Retrieve the role credentials by assuming it
-		s.retrieveRoleCredentials(Profile)
+		s.retrieveRoleCredentials(options, Profile)
 	}
 }
 
@@ -124,7 +156,7 @@ func (s *Sso) load() {
 	s.stsClient = sts.New(s.awsSession, s.awsSession.Config)
 }
 
-func (s *Sso) registerClient() {
+func (s *Sso) registerClient(options *LoginOptions) {
 	awsConfig, _ := sso.LoadClient()
 	if awsConfig.Valid() {
 		return
@@ -139,7 +171,7 @@ func (s *Sso) registerClient() {
 		Scopes:     nil,
 	}
 
-	output, err := s.ssoOidcClient.RegisterClient(clientInput)
+	output, err := options.SsoOidc.RegisterClient(clientInput)
 	if err != nil {
 		panic(err)
 	}
@@ -150,7 +182,7 @@ func (s *Sso) registerClient() {
 	awsConfig.Save()
 }
 
-func (s *Sso) authorizeDevice(Profile string) {
+func (s *Sso) authorizeDevice(options *LoginOptions, Profile string) {
 	if s.hasValidSsoProfileWithAccessToken(Profile) {
 		return
 	}
@@ -173,7 +205,7 @@ func (s *Sso) authorizeDevice(Profile string) {
 		StartUrl:     &awsProfile.StartUrl,
 	}
 
-	output, err := s.ssoOidcClient.StartDeviceAuthorization(clientInput)
+	output, err := options.SsoOidc.StartDeviceAuthorization(clientInput)
 	if err != nil {
 		panic(err)
 	}
@@ -187,7 +219,7 @@ func (s *Sso) authorizeDevice(Profile string) {
 	sleepTimeout, _ := time.ParseDuration(fmt.Sprintf("%ds", *output.Interval))
 
 	for i := 0; i < retryCount; i++ {
-		if err := s.createToken(Profile, awsClientConfig.ClientId, awsClientConfig.ClientSecret, *output.DeviceCode, *output.UserCode); err == nil {
+		if err := s.createToken(options, Profile, awsClientConfig.ClientId, awsClientConfig.ClientSecret, *output.DeviceCode, *output.UserCode); err == nil {
 			break
 		}
 
@@ -195,7 +227,7 @@ func (s *Sso) authorizeDevice(Profile string) {
 	}
 }
 
-func (s *Sso) createToken(Profile string, ClientId string, ClientSecret string, DeviceCode string, UserCode string) error {
+func (s *Sso) createToken(options *LoginOptions, Profile string, ClientId string, ClientSecret string, DeviceCode string, UserCode string) error {
 	grantType := "urn:ietf:params:oauth:grant-type:device_code"
 
 	clientInput := &ssooidc.CreateTokenInput{
@@ -206,7 +238,7 @@ func (s *Sso) createToken(Profile string, ClientId string, ClientSecret string, 
 		GrantType:    &grantType,
 	}
 
-	output, err := s.ssoOidcClient.CreateToken(clientInput)
+	output, err := options.SsoOidc.CreateToken(clientInput)
 	if err != nil {
 		return err
 	}
@@ -222,7 +254,7 @@ func (s *Sso) createToken(Profile string, ClientId string, ClientSecret string, 
 	return nil
 }
 
-func (s *Sso) retrieveRoleCredentials(Profile string) {
+func (s *Sso) retrieveRoleCredentials(options *LoginOptions, Profile string) {
 	awsConfig, _ := config.LoadConfig()
 	awsSsoProfile, _ := awsConfig.GetSsoProfile(Profile)
 
@@ -234,7 +266,7 @@ func (s *Sso) retrieveRoleCredentials(Profile string) {
 		RoleName:    &awsSsoProfile.Role,
 	}
 
-	output, err := s.ssoClient.GetRoleCredentials(&input)
+	output, err := options.Sso.GetRoleCredentials(&input)
 	if err != nil {
 		ssoProfile.Delete()
 		panic(err)
@@ -249,9 +281,11 @@ func (s *Sso) retrieveRoleCredentials(Profile string) {
 	ssoClientProfile.Save()
 }
 
-func (s *Sso) assumeRole(Profile string) {
+func (s *Sso) assumeRole(options *LoginOptions, Profile string) {
 	awsConfig, _ := config.LoadConfig()
 	awsAliasProfile, _ := awsConfig.GetAliasProfile(Profile)
+
+	s.Login(awsAliasProfile.SourceProfile)
 
 	sessionName := fmt.Sprintf("xip-session-%d", time.Now().Unix())
 	duration := int64(3600)
@@ -262,7 +296,7 @@ func (s *Sso) assumeRole(Profile string) {
 		DurationSeconds: &duration,
 	}
 
-	output, err := s.stsClient.AssumeRole(&input)
+	output, err := options.Sts.AssumeRole(&input)
 	if err != nil {
 		panic(err)
 	}
@@ -272,9 +306,8 @@ func (s *Sso) assumeRole(Profile string) {
 	ssoClientProfile.Save()
 }
 
-func (s *Sso) isAliasProfile(Profile string) bool {
-	awsConfig, _ := config.LoadConfig()
-	_, err := awsConfig.GetAliasProfile(Profile)
+func (s *Sso) isAliasProfile(options *LoginOptions, Profile string) bool {
+	_, err := options.Config.GetAliasProfile(Profile)
 
 	return err == nil
 }

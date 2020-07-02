@@ -89,7 +89,7 @@ func (c *Config) Load() error {
 
 			configEntry.Name = profileName
 			c.SsoEntries[configEntry.Name] = configEntry
-		} else if section.HasKey("source_profile") {
+		} else if section.HasKey("source_profile") && section.HasKey("role_arn") {
 			configEntry := ConfigEntryAlias{}
 			if err := section.MapTo(&configEntry); err != nil {
 				return fmt.Errorf("could not parse alias config entry %s", sectionName)
