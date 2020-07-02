@@ -9,6 +9,7 @@ import (
 
 	"xip/aws/functions/config/app"
 	"xip/aws/functions/config/config"
+	"xip/aws/functions/eks"
 	"xip/aws/functions/kubectl"
 	"xip/aws/functions/sso"
 )
@@ -19,6 +20,7 @@ type Functions struct {
 	AppConfiguration *app.App
 	AwsConfig        *config.Config
 	SsoClient        *sso.Sso
+	EksClient        *eks.Eks
 	KubectlClient    *kubectl.Kubectl
 }
 
@@ -125,6 +127,19 @@ func (f *Functions) RegisterKubectlProfile(clusterName string, roleArn string, p
 	return f.KubectlClient.RegisterProfile(clusterName, roleArn, profile, namespace, alias)
 }
 
+func (f *Functions) GetEksToken(profile string, clusterName string, roleArn string) (string, string, error) {
+	prof, err := f.AwsConfig.GetProfile(profile)
+	if err != nil {
+		return "", "", err
+	}
+
+	currentDefaultProfile, _ := f.GetDefaultProfile()
+	defer f.SetDefault(currentDefaultProfile)
+
+	f.SetDefault(profile)
+	return f.EksClient.GetToken(prof.Region, clusterName, roleArn)
+}
+
 func (f *Functions) setup() {
 	appConfig := app.New()
 
@@ -144,11 +159,13 @@ func (f *Functions) setup() {
 
 	awsConfig, _ := config.LoadConfig()
 	Sso := sso.New(*sess, appConfig)
+	EksClient := eks.New(*sess)
 	Kubectl := kubectl.New(sess, &awsConfig)
 
 	f.AwsSession = sess
 	f.AppConfiguration = &appConfig
 	f.AwsConfig = &awsConfig
 	f.SsoClient = &Sso
+	f.EksClient = &EksClient
 	f.KubectlClient = &Kubectl
 }
