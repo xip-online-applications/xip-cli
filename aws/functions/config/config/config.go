@@ -75,7 +75,11 @@ func (c *Config) Load() error {
 		}
 
 		section := file.Section(sectionName)
-		profileName := sectionName[8:]
+		profileName := sectionName
+
+		if sectionName != "default" {
+			profileName = sectionName[8:]
+		}
 
 		if section.HasKey("sso_start_url") {
 			configEntry := ConfigEntrySso{}
@@ -103,14 +107,14 @@ func (c *Config) Save() error {
 	file := ini.Empty()
 
 	for _, configEntry := range c.SsoEntries {
-		section, _ := file.NewSection("profile " + configEntry.Name)
+		section, _ := file.NewSection(c.getSectionName(configEntry.Name))
 		if err := section.ReflectFrom(&configEntry); err != nil {
 			panic(err)
 		}
 	}
 
 	for _, configEntry := range c.AliasEntries {
-		section, _ := file.NewSection("profile " + configEntry.Name)
+		section, _ := file.NewSection(c.getSectionName(configEntry.Name))
 		if err := section.ReflectFrom(&configEntry); err != nil {
 			panic(err)
 		}
@@ -190,4 +194,12 @@ func (c *Config) SetAliasProfile(Profile string, Region string, Output string, S
 
 	c.AliasEntries[aliasEntry.Name] = aliasEntry
 	return c.Save()
+}
+
+func (c *Config) getSectionName(name string) string {
+	if name == "default" {
+		return name
+	}
+
+	return "profile " + name
 }
