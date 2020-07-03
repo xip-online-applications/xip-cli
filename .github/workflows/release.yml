@@ -62,24 +62,21 @@ jobs:
           path: output/x-ip_linux_amd64
 
       - name: Upload Release Asset MacOS AMD64
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1.0.2
         with:
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: output/x-ip_macos_amd64
           asset_name: x-ip_macos_amd64
 
       - name: Upload Release Asset MacOS ARM64
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1.0.2
         with:
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: output/x-ip_macos_arm64
           asset_name: x-ip_macos_arm64
 
       - name: Upload Release Asset Linux AMD64
-        id: upload-release-asset
-        uses: actions/upload-release-asset@v1.0.1
+        uses: actions/upload-release-asset@v1.0.2
         with:
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: output/x-ip_linux_amd64
