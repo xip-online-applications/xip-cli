@@ -12,7 +12,7 @@ jobs:
       - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: ^1.13
+          go-version: ^1.14
         id: go
 
       - name: Check out code into the Go module directory
@@ -26,5 +26,24 @@ jobs:
               dep ensure
           fi
 
-      - name: Build
-        run: go build -v .
+      - name: Create output directory
+        run: |
+          mkdir output
+
+      - name: Build MacOS AMD64
+        run: GOOS=darwin;GOARCH=amd64 go build -trimpath -i -o ./output/x-ip_macos_amd64 .
+
+      - name: Build Linux AMD64
+        run: GOOS=linux;GOARCH=amd64 go build -trimpath -i -o ./output/x-ip_linux_amd64 .
+
+      - name: Upload MacOS AMD64
+        uses: actions/upload-artifact@v2
+        with:
+          name: x-ip_macos_amd64
+          path: output/x-ip_macos_amd64
+
+      - name: Upload Linux AMD64
+        uses: actions/upload-artifact@v2
+        with:
+          name: x-ip_linux_amd64
+          path: output/x-ip_linux_amd64
