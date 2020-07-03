@@ -9,7 +9,7 @@ env:
 
 jobs:
   compile-linux:
-    name: Build
+    name: Build Linux
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go 1.x
@@ -58,7 +58,7 @@ jobs:
           asset_content_type: application/x-executable
 
   compile-macos:
-    name: Build
+    name: Build macOS
     runs-on: macos-latest
     steps:
       - name: Set up Go 1.x
@@ -91,32 +91,17 @@ jobs:
         run: |
           cd pkg
           GOOS=darwin;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_macos_amd64 .
-          GOOS=darwin;GOARCH=arm64 go build -trimpath -i -o ../output/x-ip_macos_arm64 .
 
-      - name: Upload build artifact MacOS AMD64
+      - name: Upload build artifact macOS AMD64
         uses: actions/upload-artifact@v2
         with:
           name: x-ip_macos_amd64
           path: output/x-ip_macos_amd64
 
-      - name: Upload build artifact MacOS ARM64
-        uses: actions/upload-artifact@v2
-        with:
-          name: x-ip_macos_arm64
-          path: output/x-ip_macos_arm64
-
-      - name: Upload Release Asset MacOS AMD64
+      - name: Upload Release Asset macOS AMD64
         uses: actions/upload-release-asset@v1.0.2
         with:
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: output/x-ip_macos_amd64
           asset_name: x-ip_macos_amd64
           asset_content_type: application/x-mach-binary
-
-      - name: Upload Release Asset MacOS ARM64
-        uses: actions/upload-release-asset@v1.0.2
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: output/x-ip_macos_arm64
-          asset_name: x-ip_macos_arm64
-          asset_content_type: application/x-executable
