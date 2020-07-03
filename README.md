@@ -1,5 +1,7 @@
 # XIP CLI script
 
+![XIP CLI](https://github.com/xip-online-applications/xip-cli/workflows/XIP%20CLI/badge.svg)
+
 This is the main XIP CLI utilities script for several commands.
 
 ## Install
