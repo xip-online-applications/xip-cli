@@ -12,7 +12,7 @@ if [ $(uname -m) = "arm64" ]; then
 fi
 
 # Install the executable
-curl -s -o "$INSTALL_PATH" "$DOWNLOAD_LINK"
+curl -L -s -o "$INSTALL_PATH" "$DOWNLOAD_LINK"
 chmod +x "$INSTALL_PATH"
 
 echo "The command has been installed to this path: $INSTALL_PATH"
