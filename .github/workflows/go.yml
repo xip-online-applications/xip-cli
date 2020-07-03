@@ -36,14 +36,8 @@ jobs:
       - name: Build Linux AMD64
         run: GOOS=linux;GOARCH=amd64 go build -trimpath -i -o ./output/x-ip_linux_amd64 .
 
-      - name: Upload MacOS AMD64
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: x-ip_macos_amd64
-          path: output/x-ip_macos_amd64
-
-      - name: Upload Linux AMD64
-        uses: actions/upload-artifact@v2
-        with:
-          name: x-ip_linux_amd64
-          path: output/x-ip_linux_amd64
+          name: x-ip
+          path: output/
