@@ -30,14 +30,12 @@ jobs:
         run: |
           mkdir output
 
-      - name: Build MacOS AMD64
-        run: GOOS=darwin;GOARCH=amd64 go build -trimpath -i -o ./output/x-ip_macos_amd64 .
-
-      - name: Build Linux AMD64
-        run: GOOS=linux;GOARCH=amd64 go build -trimpath -i -o ./output/x-ip_linux_amd64 .
+      - name: Build all versions
+        run: |
+          GOOS=darwin;GOARCH=amd64 go build -trimpath -i -o ./output/x-ip_macos_amd64 .
+          GOOS=linux;GOARCH=amd64 go build -trimpath -i -o ./output/x-ip_linux_amd64 .
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v2
         with:
-          name: x-ip
-          path: output/
+          path: output/*
