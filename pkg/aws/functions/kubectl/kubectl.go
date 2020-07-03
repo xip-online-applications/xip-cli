@@ -3,12 +3,14 @@ package kubectl
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/eks"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/user"
+
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/eks"
+
 	"xip/aws/functions/config/config"
 )
 

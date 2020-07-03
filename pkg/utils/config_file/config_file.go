@@ -2,10 +2,11 @@ package config_file
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/spf13/viper"
 )
 
 type ConfigFile struct {

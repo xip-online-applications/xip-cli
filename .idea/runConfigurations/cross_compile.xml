@@ -1,8 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="cross-compile" type="CompoundRunConfigurationType">
-    <toRun name="xip-linux-amd64" type="GoApplicationRunConfiguration" />
-    <toRun name="xip-darwin-amd64" type="GoApplicationRunConfiguration" />
-    <toRun name="xip-windows-amd64" type="GoApplicationRunConfiguration" />
-    <method v="2" />
-  </configuration>
-</component>

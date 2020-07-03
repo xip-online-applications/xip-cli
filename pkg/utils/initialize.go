@@ -1,8 +1,10 @@
 package utils
 
 import (
-	"github.com/spf13/cobra"
 	"os/user"
+
+	"github.com/spf13/cobra"
+
 	"xip/aws/functions/config/app"
 )
 
