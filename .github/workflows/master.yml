@@ -72,7 +72,6 @@ jobs:
         run: |
           cd pkg
           GOOS=darwin;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_macos_amd64 .
-          GOOS=darwin;GOARCH=arm64 go build -trimpath -i -o ../output/x-ip_macos_arm64 .
 
       - name: Upload build artifact macOS AMD64
         uses: actions/upload-artifact@v2
