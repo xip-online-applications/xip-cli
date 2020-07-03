@@ -9,6 +9,8 @@ import (
 )
 
 func main() {
+	utils.SetupSentry()
+
 	cmd := &cobra.Command{
 		Use: "x-ip",
 	}
