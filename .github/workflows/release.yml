@@ -8,7 +8,7 @@ env:
   GITHUB_TOKEN: ${{ github.token }}
 
 jobs:
-  build:
+  compile-linux:
     name: Build
     runs-on: ubuntu-latest
     steps:
@@ -41,9 +41,57 @@ jobs:
       - name: Build all versions
         run: |
           cd pkg
+          GOOS=linux;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_linux_amd64 .
+
+      - name: Upload build artifact Linux AMD64
+        uses: actions/upload-artifact@v2
+        with:
+          name: x-ip_linux_amd64
+          path: output/x-ip_linux_amd64
+
+      - name: Upload Release Asset Linux AMD64
+        uses: actions/upload-release-asset@v1.0.2
+        with:
+          upload_url: ${{ steps.release.outputs.upload_url }}
+          asset_path: output/x-ip_linux_amd64
+          asset_name: x-ip_linux_amd64
+          asset_content_type: application/x-executable
+
+  compile-macos:
+    name: Build
+    runs-on: macos-latest
+    steps:
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.14
+        id: go
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Get Release
+        uses: bruceadams/get-release@v1.2.0
+        id: release
+
+      - name: Get dependencies
+        run: |
+          cd pkg
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+              dep ensure
+          fi
+
+      - name: Create output directory
+        run: |
+          mkdir output
+
+      - name: Build all versions
+        run: |
+          cd pkg
           GOOS=darwin;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_macos_amd64 .
           GOOS=darwin;GOARCH=arm64 go build -trimpath -i -o ../output/x-ip_macos_arm64 .
-          GOOS=linux;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_linux_amd64 .
 
       - name: Upload build artifact MacOS AMD64
         uses: actions/upload-artifact@v2
@@ -56,12 +104,6 @@ jobs:
         with:
           name: x-ip_macos_arm64
           path: output/x-ip_macos_arm64
-
-      - name: Upload build artifact Linux AMD64
-        uses: actions/upload-artifact@v2
-        with:
-          name: x-ip_linux_amd64
-          path: output/x-ip_linux_amd64
 
       - name: Upload Release Asset MacOS AMD64
         uses: actions/upload-release-asset@v1.0.2
@@ -77,12 +119,4 @@ jobs:
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: output/x-ip_macos_arm64
           asset_name: x-ip_macos_arm64
-          asset_content_type: application/x-executable
-
-      - name: Upload Release Asset Linux AMD64
-        uses: actions/upload-release-asset@v1.0.2
-        with:
-          upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: output/x-ip_linux_amd64
-          asset_name: x-ip_linux_amd64
           asset_content_type: application/x-executable
