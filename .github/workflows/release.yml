@@ -1,8 +1,9 @@
 name: XIP CLI
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 env:
   GITHUB_TOKEN: ${{ github.token }}
@@ -67,6 +68,7 @@ jobs:
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: output/x-ip_macos_amd64
           asset_name: x-ip_macos_amd64
+          asset_content_type: application/x-mach-binary
 
       - name: Upload Release Asset MacOS ARM64
         uses: actions/upload-release-asset@v1.0.2
@@ -74,6 +76,7 @@ jobs:
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: output/x-ip_macos_arm64
           asset_name: x-ip_macos_arm64
+          asset_content_type: application/x-mach-binary
 
       - name: Upload Release Asset Linux AMD64
         uses: actions/upload-release-asset@v1.0.2
@@ -81,3 +84,4 @@ jobs:
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: output/x-ip_linux_amd64
           asset_name: x-ip_linux_amd64
+          asset_content_type: application/x-executable
