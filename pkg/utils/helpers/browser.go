@@ -2,12 +2,11 @@ package helpers
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
 	"runtime"
 )
 
-func OpenBrowser(url string) {
+func OpenBrowser(url string) error {
 	var err error
 
 	switch runtime.GOOS {
@@ -22,6 +21,8 @@ func OpenBrowser(url string) {
 	}
 
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
+
+	return nil
 }

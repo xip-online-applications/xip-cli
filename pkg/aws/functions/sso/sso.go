@@ -210,7 +210,10 @@ func (s *Sso) authorizeDevice(options *LoginOptions, Profile string) {
 		panic(err)
 	}
 
-	helpers.OpenBrowser(*output.VerificationUriComplete)
+	if err = helpers.OpenBrowser(*output.VerificationUriComplete); err != nil {
+		fmt.Println("Could not open your browser, please visit this url:")
+		fmt.Println(*output.VerificationUriComplete)
+	}
 
 	tokenExpiration := int32(time.Now().Unix()) + int32(*output.ExpiresIn)
 	s.deviceCodeExpiration = &tokenExpiration
