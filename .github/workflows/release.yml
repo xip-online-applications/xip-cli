@@ -75,7 +75,7 @@ jobs:
           upload_url: ${{ steps.release.outputs.upload_url }}
           asset_path: output/x-ip_macos_arm64
           asset_name: x-ip_macos_arm64
-          asset_content_type: application/x-mach-binary
+          asset_content_type: application/x-executable
 
       - name: Upload Release Asset Linux AMD64
         uses: actions/upload-release-asset@v1.0.2
