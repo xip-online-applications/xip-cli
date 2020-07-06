@@ -106,7 +106,7 @@ func (c *Config) Load() error {
 func (c *Config) Save() error {
 	file, err := ini.Load(c.FileName)
 	if err != nil {
-		return fmt.Errorf("could not load the config file %s: %s", c.FileName, err.Error())
+		file = ini.Empty()
 	}
 
 	for _, configEntry := range c.SsoEntries {

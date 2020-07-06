@@ -75,7 +75,7 @@ func (c *Credentials) Load() error {
 func (c *Credentials) Save() error {
 	file, err := ini.Load(c.FileName)
 	if err != nil {
-		return fmt.Errorf("could not load the credentials file %s: %s", c.FileName, err.Error())
+		file = ini.Empty()
 	}
 
 	for _, credentialEntry := range c.Entries {
