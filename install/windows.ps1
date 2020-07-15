@@ -14,6 +14,5 @@ function InstallXipCli {
     $env:Path = ($arrPath + $installDir) -join ';'
 
     # Write new path env variable
-    [Environment]::SetEnvironmentVariable
-    ("Path", $env:Path, [System.EnvironmentVariableTarget]::Machine)
+    [Environment]::SetEnvironmentVariable("Path", $env:Path, [System.EnvironmentVariableTarget]::Machine)
 } InstallXipCli
