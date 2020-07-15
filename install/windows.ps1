@@ -1,10 +1,19 @@
 function InstallXipCli {
-    New-Item -Path 'C:\Program Files\XIP' -ItemType Directory
-    New-Item -Path 'C:\Program Files\XIP\bin' -ItemType Directory
+    # The install dir
+    $installDir = 'C:\Program Files\XIP\bin'
 
-    Invoke-WebRequest https://github.com/xip-online-applications/xip-cli/releases/latest/download/x-ip_windows_amd64.exe -Outfile 'C:\Program Files\XIP\bin\x-ip.exe'
+    # Create install dir if it doesn't exist
+    New-Item -Path $installDir -Force -ItemType Directory
 
-    $env:Path += 'C:\Program Files\XIP\bin'
+    # Download the file
+    Invoke-WebRequest 'https://github.com/xip-online-applications/xip-cli/releases/latest/download/x-ip_windows_amd64.exe' -Outfile "$installDir\x-ip.exe"
+
+    # Update Path environment variable
+    $regexAddPath = [regex]::Escape($installDir)
+    $arrPath = $env:Path -split ';' | Where-Object {$_ -notMatch "^$regexAddPath\\?"}
+    $env:Path = ($arrPath + $installDir) -join ';'
+
+    # Write new path env variable
     [Environment]::SetEnvironmentVariable
     ("Path", $env:Path, [System.EnvironmentVariableTarget]::Machine)
 } InstallXipCli
