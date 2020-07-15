@@ -8,16 +8,24 @@ This is the main XIP CLI utilities script for several commands.
 
 Installation can be done through the following steps for your environment:
 
-MacOS:
+MacOS (AMD64):
 
 ```bash
 wget -qO - https://raw.githubusercontent.com/xip-online-applications/xip-cli/master/install/macos.sh | bash
 ```
 
-Linux (x64):
+Linux (AMD64):
 
 ```bash
 wget -qO - https://raw.githubusercontent.com/xip-online-applications/xip-cli/master/install/linux.sh | bash
+```
+
+Windows (AMD64):
+
+Run the following command within Power Shell as Administrator:
+
+```bash
+iex ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/xip-online-applications/xip-cli/master/install/windows.ps1'))
 ```
 
 ## To run on a Mac
