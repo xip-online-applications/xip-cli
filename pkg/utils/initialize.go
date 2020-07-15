@@ -2,6 +2,7 @@ package utils
 
 import (
 	"os/user"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -16,7 +17,7 @@ func Initialize() *cobra.Command {
 	}
 
 	usr, _ := user.Current()
-	cmd.Flags().StringP("config", "c", usr.HomeDir+"/.aws/config", "AWS config file path")
+	cmd.Flags().StringP("config", "c", filepath.FromSlash(usr.HomeDir+"/.aws/config"), "AWS config file path")
 
 	return cmd
 }

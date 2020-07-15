@@ -31,7 +31,7 @@ func NewProfile(AccessToken string, ExpiresAt time.Time, Region string, StartUrl
 		sha1Hash := hex.EncodeToString(h.Sum(nil))
 
 		profile = Profile{
-			FileName: usr.HomeDir + "/.aws/sso/cache/" + sha1Hash + ".json",
+			FileName: filepath.FromSlash(usr.HomeDir + "/.aws/sso/cache/" + sha1Hash + ".json"),
 			StartUrl: StartUrl,
 		}
 	}
@@ -46,14 +46,14 @@ func NewProfile(AccessToken string, ExpiresAt time.Time, Region string, StartUrl
 func LoadProfile(StartUrl string) (Profile, error) {
 	usr, _ := user.Current()
 
-	path := usr.HomeDir + "/.aws/sso/cache"
+	path := filepath.FromSlash(usr.HomeDir + "/.aws/sso/cache")
 	files, _ := ioutil.ReadDir(path)
 	for _, fileinfo := range files {
 		if fileinfo.IsDir() {
 			continue
 		}
 
-		profileFilePath := path + "/" + fileinfo.Name()
+		profileFilePath := filepath.FromSlash(path + "/" + fileinfo.Name())
 		fileContent, err := ioutil.ReadFile(profileFilePath)
 		if err != nil {
 			continue

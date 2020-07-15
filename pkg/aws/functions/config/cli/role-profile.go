@@ -25,7 +25,7 @@ func NewRoleProfile(FileName string, AssumeRoleOutput sts.AssumeRoleOutput) Role
 	usr, _ := user.Current()
 
 	return RoleProfile{
-		FileName: usr.HomeDir + "/.aws/cli/cache/" + FileName + ".json",
+		FileName: filepath.FromSlash(usr.HomeDir + "/.aws/cli/cache/" + FileName + ".json"),
 
 		AssumedRoleUser: AssumedRole{
 			Arn:           *AssumeRoleOutput.AssumedRoleUser.Arn,

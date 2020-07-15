@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/eks"
@@ -94,7 +95,7 @@ func (k *Kubectl) WriteCertificate(cluster eks.Cluster) (string, error) {
 		return "", err
 	}
 
-	path := usr.HomeDir + "/.xip/" + *cluster.Name + ".pem"
+	path := filepath.FromSlash(usr.HomeDir + "/.xip/" + *cluster.Name + ".pem")
 
 	certificate, err := base64.StdEncoding.DecodeString(*cluster.CertificateAuthority.Data)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"path/filepath"
 
 	"gopkg.in/ini.v1"
 )
@@ -47,7 +48,7 @@ func NewConfig() Config {
 	usr, _ := user.Current()
 
 	return Config{
-		FileName: usr.HomeDir + "/.aws/config",
+		FileName: filepath.FromSlash(usr.HomeDir + "/.aws/config"),
 
 		SsoEntries:   map[string]ConfigEntrySso{},
 		AliasEntries: map[string]ConfigEntryAlias{},

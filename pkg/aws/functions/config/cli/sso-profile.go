@@ -22,7 +22,7 @@ func NewSsoProfile(FileName string, AccessKeyId string, SecretAccessKey string, 
 	usr, _ := user.Current()
 
 	return SsoProfile{
-		FileName: usr.HomeDir + "/.aws/cli/cache/" + FileName + ".json",
+		FileName: filepath.FromSlash(usr.HomeDir + "/.aws/cli/cache/" + FileName + ".json"),
 
 		ProviderType: "sso",
 		Credentials: Credentials{

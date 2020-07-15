@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/sso"
@@ -33,7 +34,7 @@ func NewCredentials() Credentials {
 	usr, _ := user.Current()
 
 	return Credentials{
-		FileName: usr.HomeDir + "/.aws/credentials",
+		FileName: filepath.FromSlash(usr.HomeDir + "/.aws/credentials"),
 
 		Entries: map[string]CredentialsEntry{},
 	}
