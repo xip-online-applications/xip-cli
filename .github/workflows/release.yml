@@ -41,13 +41,20 @@ jobs:
       - name: Build all versions
         run: |
           cd pkg
-          GOOS=linux;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_linux_amd64 .
+          GOOS=linux GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_linux_amd64 .
+          GOOS=windows GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_windows_amd64_2.exe .
 
       - name: Upload build artifact Linux AMD64
         uses: actions/upload-artifact@v2
         with:
           name: x-ip_linux_amd64
           path: output/x-ip_linux_amd64
+
+      - name: Upload build artifact Windows AMD64
+        uses: actions/upload-artifact@v2
+        with:
+          name: x-ip_windows_amd64_2.exe
+          path: output/x-ip_windows_amd64_2.exe
 
       - name: Upload Release Asset Linux AMD64
         uses: actions/upload-release-asset@v1.0.2
@@ -56,6 +63,14 @@ jobs:
           asset_path: output/x-ip_linux_amd64
           asset_name: x-ip_linux_amd64
           asset_content_type: application/x-executable
+
+      - name: Upload Release Asset Windows AMD64
+        uses: actions/upload-release-asset@v1.0.2
+        with:
+          upload_url: ${{ steps.release.outputs.upload_url }}
+          asset_path: output/x-ip_windows_amd64_2.exe
+          asset_name: x-ip_windows_amd64_2.exe
+          asset_content_type: application/octet-stream
 
   compile-macos:
     name: Build macOS
@@ -90,7 +105,7 @@ jobs:
       - name: Build all versions
         run: |
           cd pkg
-          GOOS=darwin;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_macos_amd64 .
+          GOOS=darwin GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_macos_amd64 .
 
       - name: Upload build artifact macOS AMD64
         uses: actions/upload-artifact@v2
@@ -139,7 +154,7 @@ jobs:
       - name: Build all versions
         run: |
           cd pkg
-          GOOS=windows;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_windows_amd64.exe .
+          GOOS=windows GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_windows_amd64.exe .
 
       - name: Upload build artifact Windows AMD64
         uses: actions/upload-artifact@v2
