@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-linux:
-    name: Build Linux
+    name: Build Linux & Windows
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go 1.x
@@ -35,12 +35,19 @@ jobs:
         run: |
           cd pkg
           GOOS=linux;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_linux_amd64 .
+          GOOS=windows;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_windows_amd64 .
 
       - name: Upload build artifact Linux AMD64
         uses: actions/upload-artifact@v2
         with:
           name: x-ip_linux_amd64
           path: output/x-ip_linux_amd64
+
+      - name: Upload build artifact Windows AMD64
+        uses: actions/upload-artifact@v2
+        with:
+          name: x-ip_windows_amd64
+          path: output/x-ip_windows_amd64
 
   build-macos:
     name: Build macOS
