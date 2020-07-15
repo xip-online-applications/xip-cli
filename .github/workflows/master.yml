@@ -35,7 +35,7 @@ jobs:
         run: |
           cd pkg
           GOOS=linux;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_linux_amd64 .
-          GOOS=windows;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_windows_amd64 .
+          GOOS=windows;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_windows_amd64.exe .
 
       - name: Upload build artifact Linux AMD64
         uses: actions/upload-artifact@v2
@@ -46,8 +46,8 @@ jobs:
       - name: Upload build artifact Windows AMD64
         uses: actions/upload-artifact@v2
         with:
-          name: x-ip_windows_amd64
-          path: output/x-ip_windows_amd64
+          name: x-ip_windows_amd64.exe
+          path: output/x-ip_windows_amd64.exe
 
   build-macos:
     name: Build macOS

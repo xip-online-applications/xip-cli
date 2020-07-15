@@ -42,7 +42,7 @@ jobs:
         run: |
           cd pkg
           GOOS=linux;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_linux_amd64 .
-          GOOS=windows;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_windows_amd64 .
+          GOOS=windows;GOARCH=amd64 go build -trimpath -i -o ../output/x-ip_windows_amd64.exe .
 
       - name: Upload build artifact Linux AMD64
         uses: actions/upload-artifact@v2
@@ -53,8 +53,8 @@ jobs:
       - name: Upload build artifact Windows AMD64
         uses: actions/upload-artifact@v2
         with:
-          name: x-ip_windows_amd64
-          path: output/x-ip_windows_amd64
+          name: x-ip_windows_amd64.exe
+          path: output/x-ip_windows_amd64.exe
 
       - name: Upload Release Asset Linux AMD64
         uses: actions/upload-release-asset@v1.0.2
@@ -68,9 +68,9 @@ jobs:
         uses: actions/upload-release-asset@v1.0.2
         with:
           upload_url: ${{ steps.release.outputs.upload_url }}
-          asset_path: output/x-ip_windows_amd64
-          asset_name: x-ip_windows_amd64
-          asset_content_type: application/vnd.microsoft.portable-executable
+          asset_path: output/x-ip_windows_amd64.exe
+          asset_name: x-ip_windows_amd64.exe
+          asset_content_type: application/octet-stream
 
   compile-macos:
     name: Build macOS
