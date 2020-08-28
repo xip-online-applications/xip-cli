@@ -21,6 +21,7 @@ func Aws() *cobra.Command {
 	cmd.AddCommand(cmds.Kubectl())
 	cmd.AddCommand(cmds.Identity())
 	cmd.AddCommand(cmds.EksToken())
+	cmd.AddCommand(cmds.ListProfiles())
 
 	return cmd
 }
