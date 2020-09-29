@@ -17,7 +17,7 @@ wget -qO - https://raw.githubusercontent.com/xip-online-applications/xip-cli/mas
 Linux (AMD64):
 
 ```bash
-wget -qO - https://raw.githubusercontent.com/xip-online-applications/xip-cli/master/install/linux.sh | bash
+wget -qO - https://raw.githubusercontent.com/xip-online-applications/xip-cli/master/install/linux.sh | sudo bash
 ```
 
 Windows (AMD64):
