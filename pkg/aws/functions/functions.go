@@ -1,10 +1,13 @@
 package functions
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/aws/aws-sdk-go/service/sts"
 
 	"xip/aws/functions/config/app"
@@ -21,6 +24,7 @@ type Functions struct {
 	AwsConfig        *config.Config
 	SsoClient        *sso.Sso
 	EksClient        *eks.Eks
+	EcrClient        *ecr.ECR
 	KubectlClient    *kubectl.Kubectl
 }
 
@@ -141,6 +145,32 @@ func (f *Functions) GetEksToken(profile string, clusterName string, roleArn stri
 	return f.EksClient.GetToken(prof.Region, clusterName, roleArn)
 }
 
+func (f *Functions) GetEcrPassword(profile string) (string, error) {
+	currentDefaultProfile, _ := f.GetDefaultProfile()
+	defer f.SetDefault(currentDefaultProfile)
+
+	f.Login(profile)
+	input := &ecr.GetAuthorizationTokenInput{}
+
+	result, err := f.EcrClient.GetAuthorizationToken(input)
+	if err != nil {
+		return "", err
+	}
+
+	authData := result.AuthorizationData
+	if len(authData) == 0 {
+		return "", nil
+	}
+
+	authToken := authData[0].AuthorizationToken
+	decodedAuthToken, _ := base64.StdEncoding.DecodeString(*authToken)
+
+	decodedAuthTokenString := string(decodedAuthToken)
+	splittedAuthString := strings.Split(decodedAuthTokenString, ":")
+
+	return splittedAuthString[1], nil
+}
+
 func (f *Functions) setup() {
 	appConfig := app.New()
 
@@ -163,10 +193,13 @@ func (f *Functions) setup() {
 	EksClient := eks.New(*sess)
 	Kubectl := kubectl.New(sess, &awsConfig)
 
+	EcrClient := ecr.New(sess)
+
 	f.AwsSession = sess
 	f.AppConfiguration = &appConfig
 	f.AwsConfig = &awsConfig
 	f.SsoClient = &Sso
 	f.EksClient = &EksClient
+	f.EcrClient = EcrClient
 	f.KubectlClient = &Kubectl
 }

@@ -22,6 +22,7 @@ func Aws() *cobra.Command {
 	cmd.AddCommand(cmds.Identity())
 	cmd.AddCommand(cmds.EksToken())
 	cmd.AddCommand(cmds.ListProfiles())
+	cmd.AddCommand(cmds.EcrLogin())
 
 	return cmd
 }
