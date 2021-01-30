@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssooidc"
 	"github.com/aws/aws-sdk-go/service/sts"
 
-	"xip/aws/functions/config/app"
 	"xip/aws/functions/config/cli"
 	"xip/aws/functions/config/config"
 	"xip/aws/functions/config/sso"
@@ -34,9 +33,6 @@ type Sso struct {
 	ssoOidcClient *ssooidc.SSOOIDC
 	stsClient     *sts.STS
 
-	// Configuration clients
-	appConfig *app.App
-
 	// On-the-fly information
 	deviceCodeExpiration *int32
 	retryCount           int8
@@ -56,10 +52,9 @@ type LoginOptions struct {
 // https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html
 // https://docs.aws.amazon.com/singlesignon/latest/PortalAPIReference/API_GetRoleCredentials.html
 
-func New(awsSession session.Session, appConfig app.App) Sso {
+func New(awsSession session.Session) Sso {
 	s := Sso{
 		awsSession: &awsSession,
-		appConfig:  &appConfig,
 	}
 
 	s.load()
@@ -121,9 +116,9 @@ func (s *Sso) Login(Profile string, AllOptions ...*LoginOptions) {
 
 func (s *Sso) Configure(values ConfigureValues) {
 	// Update default profile
-	appValues := s.appConfig.Get()
-	appValues.DefaultProfile = values.Profile
-	s.appConfig.Set(appValues)
+	// appValues := s.appConfig.Get()
+	// appValues.DefaultProfile = values.Profile
+	// s.appConfig.Set(appValues)
 
 	// Get config file
 	awsConfig, _ := config.LoadConfig()
@@ -140,15 +135,15 @@ func (s *Sso) Configure(values ConfigureValues) {
 }
 
 func (s *Sso) load() {
-	// App configuration
-	clientValues := s.appConfig.Get()
-
-	// Try to load default profile
-	if profile := clientValues.DefaultProfile; profile != nil {
-		awsConfig, _ := config.LoadConfig()
-		awsProfile, _ := awsConfig.GetProfile(*profile)
-		s.awsSession.Config.Region = &awsProfile.Region
-	}
+	// // App configuration
+	// clientValues := s.appConfig.Get()
+	//
+	// // Try to load default profile
+	// if profile := clientValues.DefaultProfile; profile != nil {
+	// 	awsConfig, _ := config.LoadConfig()
+	// 	awsProfile, _ := awsConfig.GetProfile(*profile)
+	// 	s.awsSession.Config.Region = &awsProfile.Region
+	// }
 
 	// Create a SSOOIDC app with additional configuration
 	s.ssoClient = awssso.New(s.awsSession, s.awsSession.Config)
@@ -295,6 +290,7 @@ func (s *Sso) assumeRole(options *LoginOptions, Profile string) {
 
 	input := sts.AssumeRoleInput{
 		RoleArn:         &awsAliasProfile.RoleArn,
+		ExternalId:      &awsAliasProfile.ExternalId,
 		RoleSessionName: &sessionName,
 		DurationSeconds: &duration,
 	}

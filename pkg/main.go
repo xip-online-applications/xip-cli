@@ -17,7 +17,6 @@ func main() {
 
 	cmd.AddCommand(aws.Aws())
 	cmd.AddCommand(kubectl.Kubectl())
-	cmd.AddCommand(utils.Initialize())
 	cmd.AddCommand(utils.Version())
 
 	_ = cmd.Execute()

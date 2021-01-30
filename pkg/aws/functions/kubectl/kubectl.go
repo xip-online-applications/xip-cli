@@ -17,10 +17,10 @@ import (
 
 type Kubectl struct {
 	EksClient *eks.EKS
-	AwsConfig *config.Config
+	AwsConfig config.Config
 }
 
-func New(AwsSession *session.Session, AwsConfig *config.Config) Kubectl {
+func New(AwsSession *session.Session, AwsConfig config.Config) Kubectl {
 	eksClient := eks.New(AwsSession)
 
 	return Kubectl{

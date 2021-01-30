@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/aws/aws-sdk-go/service/sts"
 
-	"xip/aws/functions/config/app"
 	"xip/aws/functions/config/config"
 	"xip/aws/functions/eks"
 	"xip/aws/functions/kubectl"
@@ -20,12 +19,11 @@ import (
 type Functions struct {
 	AwsSession *session.Session
 
-	AppConfiguration *app.App
-	AwsConfig        *config.Config
-	SsoClient        *sso.Sso
-	EksClient        *eks.Eks
-	EcrClient        *ecr.ECR
-	KubectlClient    *kubectl.Kubectl
+	AwsConfig     config.Config
+	SsoClient     *sso.Sso
+	EksClient     *eks.Eks
+	EcrClient     *ecr.ECR
+	KubectlClient *kubectl.Kubectl
 }
 
 func New() Functions {
@@ -41,9 +39,12 @@ func (f *Functions) Configure(values sso.ConfigureValues) {
 
 func (f *Functions) SetDefault(profile string) {
 	// Update app config
-	appValues := f.AppConfiguration.Get()
-	appValues.DefaultProfile = &profile
-	f.AppConfiguration.Set(appValues)
+	// appValues := f.AppConfiguration.Get()
+	// appValues.DefaultProfile = &profile
+	// f.AppConfiguration.Set(appValues)
+
+	_ = f.AwsConfig.SetDefaultProfile(profile)
+	_ = f.AwsConfig.Save()
 
 	// Update AWS session information
 	_ = os.Setenv("AWS_PROFILE", profile)
@@ -61,13 +62,13 @@ func (f *Functions) PrintDefaultHelp(Profile string) {
 }
 
 func (f *Functions) GetDefaultProfile() (string, error) {
-	prof := f.AppConfiguration.Get().DefaultProfile
+	prof := f.AwsConfig.DefaultProfile
 
 	if prof == nil {
 		return "", fmt.Errorf("no default profile found")
 	}
 
-	return *prof, nil
+	return prof.Name, nil
 }
 
 func (f *Functions) AddProfile(profile string, sourceProfile string, role string) {
@@ -172,34 +173,28 @@ func (f *Functions) GetEcrPassword(profile string) (string, error) {
 }
 
 func (f *Functions) setup() {
-	appConfig := app.New()
+	f.AwsConfig, _ = config.LoadConfig()
 
 	var (
-		prof    = appConfig.Get().DefaultProfile
+		prof    = f.AwsConfig.DefaultProfile
 		profile = ""
 	)
 
 	if prof != nil {
-		profile = *prof
+		profile = prof.Name
 	}
 
-	sess := session.Must(session.NewSessionWithOptions(session.Options{
+	f.AwsSession = session.Must(session.NewSessionWithOptions(session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 		Profile:           profile,
 	}))
 
-	awsConfig, _ := config.LoadConfig()
-	Sso := sso.New(*sess, appConfig)
-	EksClient := eks.New(*sess)
-	Kubectl := kubectl.New(sess, &awsConfig)
+	Sso := sso.New(*f.AwsSession)
+	EksClient := eks.New(*f.AwsSession)
+	Kubectl := kubectl.New(f.AwsSession, f.AwsConfig)
 
-	EcrClient := ecr.New(sess)
-
-	f.AwsSession = sess
-	f.AppConfiguration = &appConfig
-	f.AwsConfig = &awsConfig
 	f.SsoClient = &Sso
 	f.EksClient = &EksClient
-	f.EcrClient = EcrClient
+	f.EcrClient = ecr.New(f.AwsSession)
 	f.KubectlClient = &Kubectl
 }

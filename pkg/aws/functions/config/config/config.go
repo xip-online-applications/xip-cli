@@ -6,12 +6,14 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/ini.v1"
 )
 
 type Config struct {
-	FileName string
+	FileName       string
+	DefaultProfile *ConfigEntryAlias
 
 	SsoEntries   map[string]ConfigEntrySso
 	AliasEntries map[string]ConfigEntryAlias
@@ -38,10 +40,12 @@ type ConfigEntrySso struct {
 type ConfigEntryAlias struct {
 	Name string `ini:"-"`
 
-	Region        string `ini:"region"`
-	Output        string `ini:"output"`
-	SourceProfile string `ini:"source_profile"`
-	RoleArn       string `ini:"role_arn"`
+	Region          string `ini:"region"`
+	Output          string `ini:"output"`
+	SourceProfile   string `ini:"source_profile"`
+	RoleArn         string `ini:"role_arn"`
+	ExternalId      string `ini:"external_id,omitempty"`
+	RoleSessionName string `ini:"role_session_name,omitempty"`
 }
 
 func NewConfig() Config {
@@ -70,6 +74,8 @@ func (c *Config) Load() error {
 		file = ini.Empty()
 	}
 
+	defaultProfileName := c.findDefaultProfileName(file)
+
 	for _, sectionName := range file.SectionStrings() {
 		if sectionName == "DEFAULT" {
 			continue
@@ -82,22 +88,26 @@ func (c *Config) Load() error {
 			profileName = sectionName[8:]
 		}
 
-		if section.HasKey("sso_start_url") {
-			configEntry := ConfigEntrySso{}
-			if err := section.MapTo(&configEntry); err != nil {
-				return fmt.Errorf("could not parse sso config entry %s", sectionName)
+		if c.isSsoProfile(section) {
+			configEntry, err := c.buildSsoProfileFromSection(profileName, section)
+			if err != nil {
+				return err
 			}
 
-			configEntry.Name = profileName
-			c.SsoEntries[configEntry.Name] = configEntry
-		} else if section.HasKey("source_profile") && section.HasKey("role_arn") {
-			configEntry := ConfigEntryAlias{}
-			if err := section.MapTo(&configEntry); err != nil {
-				return fmt.Errorf("could not parse alias config entry %s", sectionName)
+			c.SsoEntries[configEntry.Name] = *configEntry
+		} else if c.isAliasProfile(section) {
+			configEntry, err := c.buildAliasProfileFromSection(profileName, section)
+			if err != nil {
+				return err
 			}
 
-			configEntry.Name = profileName
-			c.AliasEntries[configEntry.Name] = configEntry
+			if configEntry.Name != "default" {
+				c.AliasEntries[configEntry.Name] = *configEntry
+			}
+
+			if defaultProfileName != nil && configEntry.Name == *defaultProfileName {
+				c.DefaultProfile = configEntry
+			}
 		}
 	}
 
@@ -108,6 +118,18 @@ func (c *Config) Save() error {
 	file, err := ini.Load(c.FileName)
 	if err != nil {
 		file = ini.Empty()
+	}
+
+	if c.DefaultProfile != nil {
+		name := c.getSectionName(c.DefaultProfile.Name)
+		section, err := file.GetSection(name)
+		if err != nil {
+			section, _ = file.NewSection(name)
+		}
+
+		if err := section.ReflectFrom(&c.DefaultProfile); err != nil {
+			panic(err)
+		}
 	}
 
 	for _, configEntry := range c.SsoEntries {
@@ -210,10 +232,83 @@ func (c *Config) SetAliasProfile(Profile string, Region string, Output string, S
 	return c.Save()
 }
 
+func (c *Config) SetDefaultProfile(Profile string) error {
+	AliasProfile, err := c.GetAliasProfile(Profile)
+	if err != nil {
+		return err
+	}
+
+	DefaultProfile := &AliasProfile
+	DefaultProfile.RoleSessionName = "xip-cli--" + DefaultProfile.Name
+	DefaultProfile.Name = "default"
+
+	c.DefaultProfile = DefaultProfile
+
+	return nil
+}
+
+func (c *Config) findDefaultProfileName(file *ini.File) *string {
+	for _, sectionName := range file.SectionStrings() {
+		if sectionName != "default" {
+			continue
+		}
+
+		section := file.Section(sectionName)
+		if !c.isAliasProfile(section) {
+			return nil
+		}
+
+		configEntry, err := c.buildAliasProfileFromSection(sectionName, section)
+		if err != nil {
+			return nil
+		}
+
+		if !strings.HasPrefix(configEntry.RoleSessionName, "xip-cli--") {
+			return nil
+		}
+
+		profileName := configEntry.RoleSessionName[9:]
+		return &profileName
+	}
+
+	return nil
+}
+
+func (c *Config) isSsoProfile(section *ini.Section) bool {
+	return section.HasKey("sso_start_url")
+}
+
+func (c *Config) isAliasProfile(section *ini.Section) bool {
+	return section.HasKey("source_profile") && section.HasKey("role_arn")
+}
+
 func (c *Config) getSectionName(name string) string {
 	if name == "default" {
 		return name
 	}
 
 	return "profile " + name
+}
+
+func (c *Config) buildSsoProfileFromSection(profileName string, section *ini.Section) (*ConfigEntrySso, error) {
+	configEntry := ConfigEntrySso{}
+	if err := section.MapTo(&configEntry); err != nil {
+		return nil, fmt.Errorf("could not parse sso config entry %s", profileName)
+	}
+
+	configEntry.Name = profileName
+
+	return &configEntry, nil
+}
+
+func (c *Config) buildAliasProfileFromSection(profileName string, section *ini.Section) (*ConfigEntryAlias, error) {
+	configEntry := ConfigEntryAlias{}
+
+	if err := section.MapTo(&configEntry); err != nil {
+		return nil, fmt.Errorf("could not parse alias config entry %s", profileName)
+	}
+
+	configEntry.Name = profileName
+
+	return &configEntry, nil
 }
