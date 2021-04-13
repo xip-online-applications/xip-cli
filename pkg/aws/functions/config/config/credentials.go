@@ -20,16 +20,6 @@ type Credentials struct {
 	Entries map[string]CredentialsEntry
 }
 
-type CredentialsEntry struct {
-	Name string `ini:"-"`
-
-	Region               string `ini:"region"`
-	AwsAccessKeyId       string `ini:"aws_access_key_id"`
-	AwsSecretAccessKey   string `ini:"aws_secret_access_key"`
-	AwsSessionToken      string `ini:"aws_session_token"`
-	AwsSessionExpiration string `ini:"aws_session_expiration"`
-}
-
 func NewCredentials() Credentials {
 	usr, _ := user.Current()
 
@@ -120,4 +110,22 @@ func (c *Credentials) Get(Profile string) (CredentialsEntry, error) {
 	}
 
 	return CredentialsEntry{}, nil
+}
+
+func (c *Credentials) SetDefault(Profile string) error {
+	credential, err := c.Get(Profile)
+	if err != nil {
+		return fmt.Errorf("no credentials found for profile")
+	}
+
+	defaultCredential := credential
+	defaultCredential.SetDefault()
+
+	c.Entries[defaultCredential.Name] = defaultCredential
+
+	return nil
+}
+
+func (c *Credentials) UnsetDefault() {
+	delete(c.Entries, "default")
 }

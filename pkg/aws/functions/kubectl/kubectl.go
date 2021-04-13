@@ -129,7 +129,7 @@ func (k *Kubectl) RegisterCluster(cluster eks.Cluster, certificatePath string) (
 	return *cluster.Arn, nil
 }
 
-func (k *Kubectl) RegisterUser(cluster eks.Cluster, profile config.ConfigEntry, roleArn string) (string, error) {
+func (k *Kubectl) RegisterUser(cluster eks.Cluster, profile config.EntryConfig, roleArn string) (string, error) {
 	credentialsArgs := []string{
 		"aws",
 		"eks-token",

@@ -115,17 +115,14 @@ func (s *Sso) Login(Profile string, AllOptions ...*LoginOptions) {
 }
 
 func (s *Sso) Configure(values ConfigureValues) {
-	// Update default profile
-	// appValues := s.appConfig.Get()
-	// appValues.DefaultProfile = values.Profile
-	// s.appConfig.Set(appValues)
-
 	// Get config file
 	awsConfig, _ := config.LoadConfig()
 	err := awsConfig.SetSsoProfile(*values.Profile, *values.Region, "json", *values.StartUrl, *values.AccountId, *values.RoleName, *values.Region)
 	if err != nil {
 		panic(err)
 	}
+
+	_, _ = awsConfig.SetDefaultProfile(*values.Profile)
 
 	// Reload the configuration
 	s.load()

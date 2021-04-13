@@ -37,14 +37,21 @@ func (f *Functions) Configure(values sso.ConfigureValues) {
 	f.SsoClient.Configure(values)
 }
 
-func (f *Functions) SetDefault(profile string) {
-	// Update app config
-	// appValues := f.AppConfiguration.Get()
-	// appValues.DefaultProfile = &profile
-	// f.AppConfiguration.Set(appValues)
+func (f *Functions) SetDefault(profile string) error {
+	credentials, err := config.LoadCredentials()
+	if err != nil {
+		return err
+	}
 
-	_ = f.AwsConfig.SetDefaultProfile(profile)
+	prof, _ := f.AwsConfig.SetDefaultProfile(profile)
 	_ = f.AwsConfig.Save()
+
+	if prof.IsRegularProfile() {
+		_ = credentials.SetDefault(profile)
+	} else {
+		credentials.UnsetDefault()
+	}
+	_ = credentials.Save()
 
 	// Update AWS session information
 	_ = os.Setenv("AWS_PROFILE", profile)
@@ -52,6 +59,8 @@ func (f *Functions) SetDefault(profile string) {
 
 	// Reload the profile stuff
 	f.setup()
+
+	return nil
 }
 
 func (f *Functions) PrintDefaultHelp(Profile string) {
@@ -118,11 +127,7 @@ func (f *Functions) GetAllProfileNames() []string {
 	configFile, _ := config.LoadConfig()
 	var profiles []string
 
-	for _, value := range configFile.SsoEntries {
-		profiles = append(profiles, value.Name)
-	}
-
-	for _, value := range configFile.AliasEntries {
+	for _, value := range configFile.ConfigEntries {
 		profiles = append(profiles, value.Name)
 	}
 
