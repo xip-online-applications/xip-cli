@@ -105,7 +105,7 @@ func (s *Sso) Login(Profile string, AllOptions ...*LoginOptions) {
 	if s.isAliasProfile(options, Profile) {
 		// Just assume the role
 		s.assumeRole(options, Profile)
-	} else {
+	} else if s.isSsoProfile(options, Profile) {
 		// Authorize the device
 		s.authorizeDevice(options, Profile)
 
@@ -285,9 +285,14 @@ func (s *Sso) assumeRole(options *LoginOptions, Profile string) {
 	sessionName := fmt.Sprintf("xip-session-%d", time.Now().Unix())
 	duration := int64(3600)
 
+	var externalId *string
+	if len(awsAliasProfile.ExternalId) > 1 {
+		externalId = &awsAliasProfile.ExternalId
+	}
+
 	input := sts.AssumeRoleInput{
 		RoleArn:         &awsAliasProfile.RoleArn,
-		ExternalId:      &awsAliasProfile.ExternalId,
+		ExternalId:      externalId,
 		RoleSessionName: &sessionName,
 		DurationSeconds: &duration,
 	}
@@ -303,9 +308,15 @@ func (s *Sso) assumeRole(options *LoginOptions, Profile string) {
 }
 
 func (s *Sso) isAliasProfile(options *LoginOptions, Profile string) bool {
-	_, err := options.Config.GetAliasProfile(Profile)
+	prof, err := options.Config.GetProfile(Profile)
 
-	return err == nil
+	return err == nil && prof.IsAliasProfile()
+}
+
+func (s *Sso) isSsoProfile(options *LoginOptions, Profile string) bool {
+	prof, err := options.Config.GetProfile(Profile)
+
+	return err == nil && prof.IsSsoProfile()
 }
 
 func (s *Sso) hasValidSsoProfileWithAccessToken(Profile string) bool {

@@ -74,18 +74,6 @@ func (c *Config) Save() error {
 		file = ini.Empty()
 	}
 
-	if c.DefaultProfile != nil {
-		name := c.getSectionName("default")
-		section, err := file.GetSection(name)
-		if err != nil {
-			section, _ = file.NewSection(name)
-		}
-
-		if err := section.ReflectFrom(&c.DefaultProfile); err != nil {
-			panic(err)
-		}
-	}
-
 	for _, configEntry := range c.ConfigEntries {
 		if configEntry.Name == "default" {
 			continue

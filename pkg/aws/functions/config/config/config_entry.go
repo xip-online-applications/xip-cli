@@ -50,11 +50,12 @@ func (ec *EntryConfig) IsRegularProfile() bool {
 
 func (ec *EntryConfig) SetIsDefaultProfile() {
 	ec.Parent = ec.Name
-	ec.Name = "default"
 
 	if ec.IsAliasProfile() {
 		ec.RoleSessionName = "xip-cli--" + ec.Name
 	}
+
+	ec.Name = "default"
 }
 
 func (ec *EntryConfig) IsDefaultProfile() bool {
