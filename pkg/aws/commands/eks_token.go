@@ -33,5 +33,5 @@ func (c *AwsCommands) EksTokenRun(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	fmt.Println("{\"kind\": \"ExecCredential\",\"apiVersion\": \"client.authentication.k8s.io/v1alpha1\",\"spec\": {},\"status\": {\"expirationTimestamp\": \"" + tokenExpiration + "\",\"token\": \"" + token + "\"}}")
+	fmt.Println("{\"kind\": \"ExecCredential\",\"apiVersion\": \"client.authentication.k8s.io/v1beta1\",\"spec\": {},\"status\": {\"expirationTimestamp\": \"" + tokenExpiration + "\",\"token\": \"" + token + "\"}}")
 }

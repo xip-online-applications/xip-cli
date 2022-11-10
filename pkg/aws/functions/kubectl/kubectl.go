@@ -147,7 +147,7 @@ func (k *Kubectl) RegisterUser(cluster eks.Cluster, profile config.EntryConfig, 
 
 	commandArgs := []string{
 		"config", "set-credentials", *cluster.Arn + "_" + roleArn,
-		"--exec-api-version", "client.authentication.k8s.io/v1alpha1",
+		"--exec-api-version", "client.authentication.k8s.io/v1beta1",
 		"--exec-command", "x-ip",
 	}
 
