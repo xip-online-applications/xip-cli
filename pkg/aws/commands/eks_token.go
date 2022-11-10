@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"xip/aws/functions/kubectl"
 
 	"github.com/spf13/cobra"
 )
@@ -33,5 +34,5 @@ func (c *AwsCommands) EksTokenRun(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	fmt.Println("{\"kind\": \"ExecCredential\",\"apiVersion\": \"client.authentication.k8s.io/v1beta1\",\"spec\": {},\"status\": {\"expirationTimestamp\": \"" + tokenExpiration + "\",\"token\": \"" + token + "\"}}")
+	fmt.Println("{\"kind\": \"ExecCredential\",\"apiVersion\": \"" + kubectl.AuthApiVersion + "\",\"spec\": {},\"status\": {\"expirationTimestamp\": \"" + tokenExpiration + "\",\"token\": \"" + token + "\"}}")
 }
