@@ -85,14 +85,14 @@ func (s *Sso) Login(Profile string, AllOptions ...*LoginOptions) {
 
 	// Retry mechanism
 	defer func() {
-		if err := recover(); err == nil {
+		err := recover()
+		if err == nil {
 			return
 		}
 
 		if options.RetryCount > 3 {
-			err := recover()
-			_, _ = fmt.Fprintf(os.Stderr, "Failed too many times: %s\n", err)
-			os.Exit(1)
+			_, _ = fmt.Fprintf(os.Stderr, "Failed too many times for %s: %s\n", Profile, err)
+			return
 		}
 
 		options.RetryCount++

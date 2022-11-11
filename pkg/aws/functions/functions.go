@@ -104,10 +104,16 @@ func (f *Functions) Login(profile string) {
 		defer f.SetDefault(currentDefault)
 
 		for _, value := range f.GetAllProfileNames() {
-			f.SetDefault(value)
-			f.SsoClient.Login(value)
+			f.loginEach(value)
 		}
 	}
+}
+
+func (f *Functions) loginEach(value string) {
+	defer func() {}()
+
+	f.SetDefault(value)
+	f.SsoClient.Login(value)
 }
 
 func (f *Functions) Identity() string {
