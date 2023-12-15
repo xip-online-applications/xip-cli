@@ -40,25 +40,25 @@ jobs:
           GOOS=darwin GOARCH=arm64 go build -trimpath -i -o ../output/x-ip_macos_arm64 .
 
       - name: Upload build artifact Linux AMD64
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: x-ip_linux_amd64
           path: output/x-ip_linux_amd64
 
       - name: Upload build artifact Windows AMD64
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: x-ip_windows_amd64.exe
           path: output/x-ip_windows_amd64.exe
 
       - name: Upload build artifact macOS AMD64
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: x-ip_macos_amd64
           path: output/x-ip_macos_amd64
 
       - name: Upload build artifact macOS ARM64
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: x-ip_macos_arm64
           path: output/x-ip_macos_arm64
